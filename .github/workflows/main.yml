@@ -42,12 +42,12 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      - name: Set up Android SDK
+      - name: Set up Android command-line tools
         uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: 'latest'
 
-      - name: Install SDK components
+      - name: Install required Android SDK components
         run: |
           sdkmanager --install \
             "platform-tools" \
@@ -55,7 +55,21 @@ jobs:
             "build-tools;33.0.2" || true
           yes | sdkmanager --licenses
 
-      - name: Make script executable
+      - name: Bypass local cmdline-tools check (symlink trick)
+        run: |
+          mkdir -p ./cmdline-tools/latest
+          ln -s $ANDROID_HOME/cmdline-tools/latest/bin ./cmdline-tools/latest/bin
+          ln -s $ANDROID_HOME/cmdline-tools/latest/lib ./cmdline-tools/latest/lib
+          echo "Symlinked real SDK tools into ./cmdline-tools/latest"
+
+      - name: Align Android SDK environment variables
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          unset ANDROID_SDK_ROOT || true
+          echo "ANDROID_HOME is now: $ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT is now: $ANDROID_SDK_ROOT"
+
+      - name: Make build script executable
         run: chmod +x make.sh
 
       - name: Create base webapk.conf
@@ -72,27 +86,28 @@ jobs:
           JSEnabled = true
           EOF
 
-      - name: Apply inputs to config
+      - name: Apply user inputs to webapk.conf
         run: |
           sed -i "s|^mainURL = .*|mainURL = ${{ inputs.website_url }}|" webapk.conf
           sed -i "s|^name = .*|name = ${{ inputs.app_name }}|" webapk.conf
           sed -i "s|^id = .*|id = ${{ inputs.app_id }}|" webapk.conf
 
-          JS_VALUE=$$   ([[ "   $${{ inputs.enable_js }}" == "true" ]] && echo "true" || echo "false")
+          JS_VALUE=$([[ "${{ inputs.enable_js }}" == "true" ]] && echo "true" || echo "false")
           sed -i "s|^JSEnabled = .*|JSEnabled = $JS_VALUE|" webapk.conf
 
-          EXT_VALUE=$$   ([[ "   $${{ inputs.allow_external_links }}" == "true" ]] && echo "true" || echo "false")
-          sed -i "s|^openExternalLinksInBrowser = .*|openExternalLinksInBrowser = $EXT_VALUE|" webapk.conf
+          EXTERNAL_VALUE=$([[ "${{ inputs.allow_external_links }}" == "true" ]] && echo "true" || echo "false")
+          sed -i "s|^openExternalLinksInBrowser = .*|openExternalLinksInBrowser = $EXTERNAL_VALUE|" webapk.conf
 
+          echo "Final configuration:"
           cat webapk.conf
 
-      - name: Generate keystore
+      - name: Generate signing keystore
         run: ./make.sh keygen
 
-      - name: Build APK
+      - name: Build the APK
         run: ./make.sh build
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.app_name || 'pipilot' }}-apk
