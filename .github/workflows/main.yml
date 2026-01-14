@@ -1,0 +1,57 @@
+name: Build Website-to-APK
+
+on:
+  workflow_dispatch:  # Manual trigger (add push/pull_request later if desired)
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Accept Android SDK licenses
+        run: |
+          mkdir -p ~/.android
+          echo -e "24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.android/repositories.cfg
+          yes | sdkmanager --licenses || true
+
+      - name: Cache Gradle and Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.android
+            cmdline-tools
+            openjdk
+          key: ${{ runner.os }}-build-${{ hashFiles('**/make.sh', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-build-
+
+      - name: Make script executable
+        run: chmod +x make.sh
+
+      - name: Configure app (example: override config via env or sed)
+        run: |
+          # Example: dynamically set URL, name, etc. from GitHub secrets or inputs
+          sed -i 's|^mainURL = .*|mainURL = https://your-site.com|' webapk.conf
+          sed -i 's|^name = .*|name = My Auto App|' webapk.conf
+          # Add icon copy, userscripts, etc. as needed
+
+      - name: Build APK
+        run: ./make.sh build
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-apk
+          path: ./*.apk
