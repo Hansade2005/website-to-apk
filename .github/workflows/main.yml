@@ -1,9 +1,31 @@
-name: Build Website-to-APK
+name: Build Website-to-APK with Inputs
 
 on:
-  workflow_dispatch:          # Allows manual trigger from Actions tab
-  push:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      website_url:
+        description: 'The full website URL to wrap (e.g., https://example.com)'
+        required: true
+        type: string
+      app_name:
+        description: 'Name of the Android app as shown on device'
+        required: true
+        type: string
+      app_id:
+        description: 'App ID suffix (e.g., myapp → becomes com.myapp.webtoapk)'
+        required: false
+        type: string
+        default: 'mywebapp'
+      enable_js:
+        description: 'Enable JavaScript in WebView?'
+        required: false
+        type: boolean
+        default: true
+      allow_external_links:
+        description: 'Open external links in browser?'
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   build:
@@ -25,7 +47,7 @@ jobs:
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$HOME/.android/repositories.cfg"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
 
-      - name: Cache Gradle dependencies and Android SDK
+      - name: Cache Gradle and Android SDK
         uses: actions/cache@v4
         with:
           path: |
@@ -34,28 +56,37 @@ jobs:
             ~/.android
             cmdline-tools
             openjdk
-          key: ${{ runner.os }}-build-${{ hashFiles('make.sh', 'gradle/wrapper/gradle-wrapper.properties', 'webapk.conf') }}
-          restore-keys: ${{ runner.os }}-build-
+          key: ${{ runner.os }}-apk-build-${{ hashFiles('make.sh', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-apk-build-
 
       - name: Make build script executable
         run: chmod +x make.sh
 
-      - name: Configure app settings
+      - name: Apply user inputs to webapk.conf
         run: |
-          # Customize these values - you can also use GitHub repository secrets or workflow_dispatch inputs
-          sed -i 's|^mainURL = .*|mainURL = https://example.com|' webapk.conf
-          sed -i 's|^name = .*|name = My Website App|' webapk.conf
-          sed -i 's|^id = .*|id = mywebapp|' webapk.conf
-          # Optional: copy a custom icon if you have one committed
-          # cp path/to/your/icon.png icon.png
-          # sed -i 's|^icon = .*|icon = icon.png|' webapk.conf
+          # Update config with inputs (inputs.<name> preserves boolean type)
+          sed -i "s|^mainURL = .*|mainURL = ${{ inputs.website_url }}|" webapk.conf
+          sed -i "s|^name = .*|name = ${{ inputs.app_name }}|" webapk.conf
+          sed -i "s|^id = .*|id = ${{ inputs.app_id }}|" webapk.conf
+          
+          # Boolean handling – convert to lowercase true/false string expected by config
+          JS_VALUE=$([[ "${{ inputs.enable_js }}" == "true" ]] && echo "true" || echo "false")
+          sed -i "s|^JSEnabled = .*|JSEnabled = $JS_VALUE|" webapk.conf
+          
+          EXTERNAL_VALUE=$([[ "${{ inputs.allow_external_links }}" == "true" ]] && echo "true" || echo "false")
+          sed -i "s|^openExternalLinksInBrowser = .*|openExternalLinksInBrowser = $EXTERNAL_VALUE|" webapk.conf
+
+          # Optional: Add more sed commands for other config options as needed
+
+          # Show what we configured (for debugging in logs)
+          cat webapk.conf
 
       - name: Build APK
         run: ./make.sh build
 
-      - name: Upload built APK as artifact
+      - name: Upload built APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: website-to-apk
+          name: website-apk-${{ inputs.app_name || 'unnamed' }}
           path: ./*.apk
           if-no-files-found: error
