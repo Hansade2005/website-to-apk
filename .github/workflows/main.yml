@@ -62,6 +62,13 @@ jobs:
           ln -s $ANDROID_HOME/cmdline-tools/latest/lib ./cmdline-tools/latest/lib
           echo "Symlinked real SDK tools into ./cmdline-tools/latest"
 
+      - name: Align Android SDK environment variables
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          unset ANDROID_SDK_ROOT || true
+          echo "ANDROID_HOME is now: $ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT is now: $ANDROID_SDK_ROOT"
+
       - name: Make build script executable
         run: chmod +x make.sh
 
@@ -94,7 +101,7 @@ jobs:
           echo "Final configuration:"
           cat webapk.conf
 
-      - name: Generate signing keystore (only needed once per runner)
+      - name: Generate signing keystore
         run: ./make.sh keygen
 
       - name: Build the APK
