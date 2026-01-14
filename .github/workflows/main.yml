@@ -1,23 +1,23 @@
-name: Build Website-to-APK with Inputs
+name: Build Website-to-APK (PiPilot)
 
 on:
   workflow_dispatch:
     inputs:
       website_url:
-        description: 'The full website URL to wrap (e.g., https://pipilot.dev)'
+        description: 'Website URL to wrap (e.g. https://pipilot.dev)'
         required: true
         type: string
       app_name:
-        description: 'Name of the Android app as shown on device'
+        description: 'App name shown on device'
         required: true
         type: string
       app_id:
-        description: 'App ID suffix (e.g., pipilot → becomes com.pipilot.webtoapk)'
+        description: 'App ID suffix (e.g. pipilot → com.pipilot.webtoapk)'
         required: false
         type: string
         default: 'pipilot'
       enable_js:
-        description: 'Enable JavaScript in WebView?'
+        description: 'Enable JavaScript?'
         required: false
         type: boolean
         default: true
@@ -41,35 +41,41 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
+      - name: Setup Android command-line tools
         uses: android-actions/setup-android@v3
         with:
-          cmdline-tools-version: 'latest'   # or specific like '11076708_latest' for stability
+          cmdline-tools-version: 'latest'
 
-      - name: Install required SDK packages
+      - name: Install required Android SDK components
         run: |
-          sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          # Install exactly what the project template needs (API 33 target)
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2" || echo "Some packages already installed"
+          # Accept all licenses non-interactively
           yes | sdkmanager --licenses
 
-      - name: Cache Gradle dependencies
+      - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', 'make.sh') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Make build script executable
+      - name: Make script executable
         run: chmod +x make.sh
 
-      - name: Create base webapk.conf
+      - name: Create minimal webapk.conf
         run: |
           cat > webapk.conf << 'EOF'
+          # Minimal config - overridden below
           id = placeholder
-          name = Placeholder App
+          name = Placeholder
           mainURL = https://example.com
-          icon = icon.png
+          icon = icon.png           # commit your icon.png to repo root if desired
           allowSubdomains = true
           requireDoubleBackToExit = true
           enableExternalLinks = true
@@ -77,27 +83,27 @@ jobs:
           JSEnabled = true
           EOF
 
-      - name: Apply user inputs to webapk.conf
+      - name: Apply workflow inputs to config
         run: |
           sed -i "s|^mainURL = .*|mainURL = ${{ inputs.website_url }}|" webapk.conf
           sed -i "s|^name = .*|name = ${{ inputs.app_name }}|" webapk.conf
           sed -i "s|^id = .*|id = ${{ inputs.app_id }}|" webapk.conf
-          
+
           JS_VALUE=$([[ "${{ inputs.enable_js }}" == "true" ]] && echo "true" || echo "false")
           sed -i "s|^JSEnabled = .*|JSEnabled = $JS_VALUE|" webapk.conf
-          
-          EXTERNAL_VALUE=$([[ "${{ inputs.allow_external_links }}" == "true" ]] && echo "true" || echo "false")
-          sed -i "s|^openExternalLinksInBrowser = .*|openExternalLinksInBrowser = $EXTERNAL_VALUE|" webapk.conf
 
-          echo "Final webapk.conf content:"
+          EXT_VALUE=$([[ "${{ inputs.allow_external_links }}" == "true" ]] && echo "true" || echo "false")
+          sed -i "s|^openExternalLinksInBrowser = .*|openExternalLinksInBrowser = $EXT_VALUE|" webapk.conf
+
+          echo "Applied configuration:"
           cat webapk.conf
 
-      - name: Build APK using make.sh
+      - name: Run build script
         run: ./make.sh build
 
-      - name: Upload built APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: website-apk-${{ inputs.app_name || 'unnamed' }}
+          name: ${{ inputs.app_name || 'pipilot' }}-apk
           path: ./*.apk
           if-no-files-found: error
