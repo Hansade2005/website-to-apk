@@ -55,12 +55,13 @@ jobs:
             "build-tools;33.0.2" || true
           yes | sdkmanager --licenses
 
-      - name: Disable script's local cmdline-tools existence check
+      - name: Patch make.sh to bypass local cmdline-tools check
         run: |
-          # Comment out the failing check in make.sh
-          sed -i '/^\s*if\s*\[ ! -d "\.\/cmdline-tools" \]/,/^\s*fi\s*$/s/^/# /' make.sh
-          # Optional: also comment the error message line for cleaner logs
-          sed -i 's/^\s*echo\s*\[!\] Android Command Line Tools not found.*/# &/' make.sh
+          # Comment out the entire if-check block for missing ./cmdline-tools
+          sed -i '/if\s*\[ ! -d "\.\/cmdline-tools" \]/,/fi/s/^/#/' make.sh
+          # Comment the error echo line too (optional but cleaner logs)
+          sed -i 's/echo\s*\[!\] Android Command Line Tools not found/# &/' make.sh
+          echo "Patched make.sh to skip cmdline-tools existence check"
 
       - name: Make build script executable
         run: chmod +x make.sh
