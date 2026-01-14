@@ -1,7 +1,7 @@
 name: Build Website-to-APK
 
 on:
-  workflow_dispatch:  # Manual trigger (add push/pull_request later if desired)
+  workflow_dispatch:          # Allows manual trigger from Actions tab
   push:
     branches: [ main ]
 
@@ -16,16 +16,16 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
 
       - name: Accept Android SDK licenses
         run: |
-          mkdir -p ~/.android
-          echo -e "24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.android/repositories.cfg
-          yes | sdkmanager --licenses || true
+          mkdir -p "$HOME/.android"
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$HOME/.android/repositories.cfg"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
 
-      - name: Cache Gradle and Android SDK
+      - name: Cache Gradle dependencies and Android SDK
         uses: actions/cache@v4
         with:
           path: |
@@ -34,24 +34,28 @@ jobs:
             ~/.android
             cmdline-tools
             openjdk
-          key: ${{ runner.os }}-build-${{ hashFiles('**/make.sh', '**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-build-${{ hashFiles('make.sh', 'gradle/wrapper/gradle-wrapper.properties', 'webapk.conf') }}
           restore-keys: ${{ runner.os }}-build-
 
-      - name: Make script executable
+      - name: Make build script executable
         run: chmod +x make.sh
 
-      - name: Configure app (example: override config via env or sed)
+      - name: Configure app settings
         run: |
-          # Example: dynamically set URL, name, etc. from GitHub secrets or inputs
-          sed -i 's|^mainURL = .*|mainURL = https://your-site.com|' webapk.conf
-          sed -i 's|^name = .*|name = My Auto App|' webapk.conf
-          # Add icon copy, userscripts, etc. as needed
+          # Customize these values - you can also use GitHub repository secrets or workflow_dispatch inputs
+          sed -i 's|^mainURL = .*|mainURL = https://example.com|' webapk.conf
+          sed -i 's|^name = .*|name = My Website App|' webapk.conf
+          sed -i 's|^id = .*|id = mywebapp|' webapk.conf
+          # Optional: copy a custom icon if you have one committed
+          # cp path/to/your/icon.png icon.png
+          # sed -i 's|^icon = .*|icon = icon.png|' webapk.conf
 
       - name: Build APK
         run: ./make.sh build
 
-      - name: Upload APK artifact
+      - name: Upload built APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: website-apk
+          name: website-to-apk
           path: ./*.apk
+          if-no-files-found: error
