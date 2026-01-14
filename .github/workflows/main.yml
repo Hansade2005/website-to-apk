@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       website_url:
-        description: 'Website URL to wrap (e.g. https://pipilot.dev)'
+        description: 'Website URL to wrap[](https://pipilot.dev)'
         required: true
         type: string
       app_name:
@@ -12,12 +12,12 @@ on:
         required: true
         type: string
       app_id:
-        description: 'ID suffix (e.g. pipilot → com.pipilot.webtoapk)'
+        description: 'ID suffix (pipilot → com.pipilot.webtoapk)'
         required: false
         default: 'pipilot'
         type: string
       enable_js:
-        description: 'Enable JavaScript?'
+        description: 'Enable JavaScript in the app?'
         required: false
         default: true
         type: boolean
@@ -32,11 +32,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout forked repository
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          repository: Hansade2005/website-to-apk   # ← YOUR fork here
-          ref: main
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
