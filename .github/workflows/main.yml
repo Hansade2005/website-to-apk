@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       website_url:
-        description: 'Website URL to wrap[](https://pipilot.dev)'
+        description: 'Website URL to wrap (e.g. https://pipilot.dev)'
         required: true
         type: string
       app_name:
@@ -12,12 +12,12 @@ on:
         required: true
         type: string
       app_id:
-        description: 'ID suffix (pipilot → com.pipilot.webtoapk)'
+        description: 'ID suffix (e.g. pipilot → com.pipilot.webtoapk)'
         required: false
         default: 'pipilot'
         type: string
       enable_js:
-        description: 'Enable JavaScript in the app?'
+        description: 'Enable JavaScript?'
         required: false
         default: true
         type: boolean
@@ -32,8 +32,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout forked repository
         uses: actions/checkout@v4
+        with:
+          repository: pipilot_ai/website-to-apk   # ← YOUR fork here
+          ref: main
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -42,12 +45,12 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      - name: Set up Android command-line tools
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: 'latest'
 
-      - name: Install required Android SDK components
+      - name: Install SDK components
         run: |
           sdkmanager --install \
             "platform-tools" \
@@ -55,21 +58,7 @@ jobs:
             "build-tools;33.0.2" || true
           yes | sdkmanager --licenses
 
-      - name: Bypass local cmdline-tools check (symlink trick)
-        run: |
-          mkdir -p ./cmdline-tools/latest
-          ln -s $ANDROID_HOME/cmdline-tools/latest/bin ./cmdline-tools/latest/bin
-          ln -s $ANDROID_HOME/cmdline-tools/latest/lib ./cmdline-tools/latest/lib
-          echo "Symlinked real SDK tools into ./cmdline-tools/latest"
-
-      - name: Align Android SDK environment variables
-        run: |
-          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          unset ANDROID_SDK_ROOT || true
-          echo "ANDROID_HOME is now: $ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT is now: $ANDROID_SDK_ROOT"
-
-      - name: Make build script executable
+      - name: Make script executable
         run: chmod +x make.sh
 
       - name: Create base webapk.conf
@@ -86,28 +75,27 @@ jobs:
           JSEnabled = true
           EOF
 
-      - name: Apply user inputs to webapk.conf
+      - name: Apply inputs to config
         run: |
           sed -i "s|^mainURL = .*|mainURL = ${{ inputs.website_url }}|" webapk.conf
           sed -i "s|^name = .*|name = ${{ inputs.app_name }}|" webapk.conf
           sed -i "s|^id = .*|id = ${{ inputs.app_id }}|" webapk.conf
 
-          JS_VALUE=$([[ "${{ inputs.enable_js }}" == "true" ]] && echo "true" || echo "false")
+          JS_VALUE=$$   ([[ "   $${{ inputs.enable_js }}" == "true" ]] && echo "true" || echo "false")
           sed -i "s|^JSEnabled = .*|JSEnabled = $JS_VALUE|" webapk.conf
 
-          EXTERNAL_VALUE=$([[ "${{ inputs.allow_external_links }}" == "true" ]] && echo "true" || echo "false")
-          sed -i "s|^openExternalLinksInBrowser = .*|openExternalLinksInBrowser = $EXTERNAL_VALUE|" webapk.conf
+          EXT_VALUE=$$   ([[ "   $${{ inputs.allow_external_links }}" == "true" ]] && echo "true" || echo "false")
+          sed -i "s|^openExternalLinksInBrowser = .*|openExternalLinksInBrowser = $EXT_VALUE|" webapk.conf
 
-          echo "Final configuration:"
           cat webapk.conf
 
-      - name: Generate signing keystore
+      - name: Generate keystore
         run: ./make.sh keygen
 
-      - name: Build the APK
+      - name: Build APK
         run: ./make.sh build
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.app_name || 'pipilot' }}-apk
