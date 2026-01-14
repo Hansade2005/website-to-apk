@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       website_url:
-        description: 'The full website URL to wrap (e.g., https://example.com)'
+        description: 'The full website URL to wrap (e.g., https://pipilot.dev)'
         required: true
         type: string
       app_name:
@@ -12,10 +12,10 @@ on:
         required: true
         type: string
       app_id:
-        description: 'App ID suffix (e.g., myapp → becomes com.myapp.webtoapk)'
+        description: 'App ID suffix (e.g., pipilot → becomes com.pilot.webtoapk)'
         required: false
         type: string
-        default: 'mywebapp'
+        default: 'pipilot'
       enable_js:
         description: 'Enable JavaScript in WebView?'
         required: false
@@ -62,23 +62,37 @@ jobs:
       - name: Make build script executable
         run: chmod +x make.sh
 
+      - name: Create base webapk.conf
+        run: |
+          cat > webapk.conf << 'EOF'
+          # Default/minimal configuration - will be overridden below
+          id = placeholder
+          name = Placeholder App
+          mainURL = https://example.com
+          icon = icon.png          # Change if you commit a real icon.png
+          allowSubdomains = true
+          requireDoubleBackToExit = true
+          enableExternalLinks = true
+          openExternalLinksInBrowser = true
+          JSEnabled = true
+          EOF
+
       - name: Apply user inputs to webapk.conf
         run: |
-          # Update config with inputs (inputs.<name> preserves boolean type)
+          # Overwrite with real values from workflow inputs
           sed -i "s|^mainURL = .*|mainURL = ${{ inputs.website_url }}|" webapk.conf
           sed -i "s|^name = .*|name = ${{ inputs.app_name }}|" webapk.conf
           sed -i "s|^id = .*|id = ${{ inputs.app_id }}|" webapk.conf
           
-          # Boolean handling – convert to lowercase true/false string expected by config
+          # Handle booleans (convert GitHub's true/false to config's lowercase string)
           JS_VALUE=$([[ "${{ inputs.enable_js }}" == "true" ]] && echo "true" || echo "false")
           sed -i "s|^JSEnabled = .*|JSEnabled = $JS_VALUE|" webapk.conf
           
           EXTERNAL_VALUE=$([[ "${{ inputs.allow_external_links }}" == "true" ]] && echo "true" || echo "false")
           sed -i "s|^openExternalLinksInBrowser = .*|openExternalLinksInBrowser = $EXTERNAL_VALUE|" webapk.conf
 
-          # Optional: Add more sed commands for other config options as needed
-
-          # Show what we configured (for debugging in logs)
+          # Debug: show final config
+          echo "Final webapk.conf content:"
           cat webapk.conf
 
       - name: Build APK
