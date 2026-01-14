@@ -1,31 +1,31 @@
-name: Build Website-to-APK (PiPilot)
+name: Build PiPilot APK
 
 on:
   workflow_dispatch:
     inputs:
       website_url:
-        description: 'Website URL to wrap (e.g. https://pipilot.dev)'
+        description: 'Website URL to wrap[](https://pipilot.dev)'
         required: true
         type: string
       app_name:
-        description: 'App name shown on device'
+        description: 'App name shown on phone'
         required: true
         type: string
       app_id:
-        description: 'App ID suffix (e.g. pipilot → com.pipilot.webtoapk)'
+        description: 'ID suffix (pipilot → com.pipilot.webtoapk)'
         required: false
-        type: string
         default: 'pipilot'
+        type: string
       enable_js:
-        description: 'Enable JavaScript?'
+        description: 'Enable JavaScript in the app?'
         required: false
-        type: boolean
         default: true
+        type: boolean
       allow_external_links:
         description: 'Open external links in browser?'
         required: false
-        type: boolean
         default: true
+        type: boolean
 
 jobs:
   build:
@@ -36,46 +36,45 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
-      - name: Setup Android command-line tools
+      - name: Set up Android command-line tools
         uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: 'latest'
 
       - name: Install required Android SDK components
         run: |
-          # Install exactly what the project template needs (API 33 target)
           sdkmanager --install \
             "platform-tools" \
             "platforms;android-33" \
-            "build-tools;33.0.2" || echo "Some packages already installed"
-          # Accept all licenses non-interactively
+            "build-tools;33.0.2" || true
           yes | sdkmanager --licenses
 
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', 'make.sh') }}
-          restore-keys: ${{ runner.os }}-gradle-
+      - name: Bypass local cmdline-tools check (symlink trick)
+        run: |
+          # Create the exact folder the script is looking for
+          mkdir -p ./cmdline-tools/latest
+          # Symlink real binaries and libs so the script can find them
+          ln -s $ANDROID_HOME/cmdline-tools/latest/bin ./cmdline-tools/latest/bin
+          ln -s $ANDROID_HOME/cmdline-tools/latest/lib ./cmdline-tools/latest/lib
+          # Optional: more symlinks if needed later (platform-tools, etc.)
+          echo "Symlinked real SDK tools into ./cmdline-tools/latest"
 
-      - name: Make script executable
+      - name: Make build script executable
         run: chmod +x make.sh
 
-      - name: Create minimal webapk.conf
+      - name: Create base webapk.conf
         run: |
           cat > webapk.conf << 'EOF'
-          # Minimal config - overridden below
           id = placeholder
-          name = Placeholder
+          name = Placeholder App
           mainURL = https://example.com
-          icon = icon.png           # commit your icon.png to repo root if desired
+          icon = icon.png
           allowSubdomains = true
           requireDoubleBackToExit = true
           enableExternalLinks = true
@@ -83,7 +82,7 @@ jobs:
           JSEnabled = true
           EOF
 
-      - name: Apply workflow inputs to config
+      - name: Apply user inputs to webapk.conf
         run: |
           sed -i "s|^mainURL = .*|mainURL = ${{ inputs.website_url }}|" webapk.conf
           sed -i "s|^name = .*|name = ${{ inputs.app_name }}|" webapk.conf
@@ -92,16 +91,16 @@ jobs:
           JS_VALUE=$([[ "${{ inputs.enable_js }}" == "true" ]] && echo "true" || echo "false")
           sed -i "s|^JSEnabled = .*|JSEnabled = $JS_VALUE|" webapk.conf
 
-          EXT_VALUE=$([[ "${{ inputs.allow_external_links }}" == "true" ]] && echo "true" || echo "false")
-          sed -i "s|^openExternalLinksInBrowser = .*|openExternalLinksInBrowser = $EXT_VALUE|" webapk.conf
+          EXTERNAL_VALUE=$([[ "${{ inputs.allow_external_links }}" == "true" ]] && echo "true" || echo "false")
+          sed -i "s|^openExternalLinksInBrowser = .*|openExternalLinksInBrowser = $EXTERNAL_VALUE|" webapk.conf
 
-          echo "Applied configuration:"
+          echo "Final configuration:"
           cat webapk.conf
 
-      - name: Run build script
+      - name: Build the APK
         run: ./make.sh build
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.app_name || 'pipilot' }}-apk
