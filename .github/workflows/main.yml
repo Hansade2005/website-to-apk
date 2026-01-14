@@ -57,12 +57,9 @@ jobs:
 
       - name: Bypass local cmdline-tools check (symlink trick)
         run: |
-          # Create the exact folder the script is looking for
           mkdir -p ./cmdline-tools/latest
-          # Symlink real binaries and libs so the script can find them
           ln -s $ANDROID_HOME/cmdline-tools/latest/bin ./cmdline-tools/latest/bin
           ln -s $ANDROID_HOME/cmdline-tools/latest/lib ./cmdline-tools/latest/lib
-          # Optional: more symlinks if needed later (platform-tools, etc.)
           echo "Symlinked real SDK tools into ./cmdline-tools/latest"
 
       - name: Make build script executable
@@ -96,6 +93,9 @@ jobs:
 
           echo "Final configuration:"
           cat webapk.conf
+
+      - name: Generate signing keystore (only needed once per runner)
+        run: ./make.sh keygen
 
       - name: Build the APK
         run: ./make.sh build
