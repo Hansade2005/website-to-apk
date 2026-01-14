@@ -35,7 +35,7 @@ jobs:
       - name: Checkout forked repository
         uses: actions/checkout@v4
         with:
-          repository: pipilot_ai/website-to-apk   # ← YOUR fork here
+          repository: Hansade2005/website-to-apk   # ← YOUR fork here
           ref: main
 
       - name: Set up JDK 17
