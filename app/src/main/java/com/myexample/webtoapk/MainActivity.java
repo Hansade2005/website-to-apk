@@ -551,13 +551,12 @@ public class MainActivity extends AppCompatActivity {
             String content = menuItems.get(item.getItemId());
             if (content != null && !content.isEmpty()) {
                 if (content.startsWith("text:")) {
-                    // Display text content in a dialog
+                    // Display text content in a new activity
                     String textContent = content.substring(5); // Remove "text:" prefix
-                    new AlertDialog.Builder(this)
-                        .setTitle(item.getTitle())
-                        .setMessage(textContent)
-                        .setPositiveButton(android.R.string.ok, null)
-                        .show();
+                    Intent intent = new Intent(this, TextDisplayActivity.class);
+                    intent.putExtra("title", item.getTitle());
+                    intent.putExtra("content", textContent);
+                    startActivity(intent);
                 } else {
                     // Load URL in WebView
                     webview.loadUrl(content);
