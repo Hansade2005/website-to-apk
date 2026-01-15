@@ -756,8 +756,9 @@ elif [ ! -d "$ANDROID_HOME/build-tools" ] || [ ! -d "$ANDROID_HOME/platforms" ];
     # ANDROID_HOME is set but doesn't have necessary SDK components
     # This happens when ANDROID_HOME points to a minimal installation
     # Fall back to local path
-    warn "ANDROID_HOME is set to $ANDROID_HOME but missing SDK components"
+    warn "ANDROID_HOME is set to $ANDROID_HOME but missing required SDK components (build-tools and/or platforms directories)"
     export ANDROID_HOME=$PWD/cmdline-tools/
+    info "Falling back to local cmdline-tools: $ANDROID_HOME"
 else
     # ANDROID_HOME is set and appears to have necessary SDK components
     info "Using existing ANDROID_HOME: $ANDROID_HOME"
