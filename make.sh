@@ -589,20 +589,24 @@ EOF
             print $0
             print "        // Auto-generated tab URL mappings"
             printf "%s", mappings
-            skip_next = 1
+            in_method = 1
+            skip_mappings = 1
             next
         }
-        /\/\/ Tab URLs and menu items are populated by make.sh/ && skip_next {
-            skip_next = 0
+        in_method && skip_mappings && /^[[:space:]]*tabUrls\.put\(/ {
             next
         }
-        /This method sets up the click listener/ && skip_next {
-            skip_next = 0
+        in_method && skip_mappings && (/^[[:space:]]*\/\/ / || /^[[:space:]]*$/) {
             next
         }
-        !skip_next || !/^[[:space:]]*\/\// {
-            skip_next = 0
+        in_method && skip_mappings {
+            skip_mappings = 0
+        }
+        !skip_mappings {
             print $0
+        }
+        /private void setupDrawerNavigation/ {
+            in_method = 0
         }
         ' "$java_file" > "$tmp_file"
         
@@ -684,16 +688,24 @@ EOF
             print $0
             print "        // Auto-generated menu item mappings"
             printf "%s", mappings
-            skip_next = 1
+            in_method = 1
+            skip_mappings = 1
             next
         }
-        /\/\/ Menu items and content are populated by make.sh/ && skip_next {
-            skip_next = 0
+        in_method && skip_mappings && /^[[:space:]]*menuItems\.put\(/ {
             next
         }
-        !skip_next || !/^[[:space:]]*\/\// {
-            skip_next = 0
+        in_method && skip_mappings && (/^[[:space:]]*\/\/ / || /^[[:space:]]*$/) {
+            next
+        }
+        in_method && skip_mappings {
+            skip_mappings = 0
+        }
+        !skip_mappings {
             print $0
+        }
+        /private void executeMediaActionInWebView/ {
+            in_method = 0
         }
         ' "$java_file" > "$tmp_file"
         

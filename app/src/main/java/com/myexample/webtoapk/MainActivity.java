@@ -517,10 +517,6 @@ public class MainActivity extends AppCompatActivity {
         // Auto-generated tab URL mappings
         tabUrls.put(R.id.tab_1, "https://github.com");
         tabUrls.put(R.id.tab_2, "https://github.com/explore");
-        tabUrls.put(R.id.tab_3, "https://github.com/settings/profile");
-        // This method sets up the click listener for tab navigation
-        
-        // Check if bottom navigation has any menu items
         if (bottomNavigation.getMenu().size() == 0) {
             // No tabs configured, keep it hidden
             bottomNavigation.setVisibility(View.GONE);
@@ -542,11 +538,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupDrawerNavigation() {
         // Auto-generated menu item mappings
-        menuItems.put(R.id.menu_1, "https://github.com");
-        menuItems.put(R.id.menu_2, "text:This is my awesome app!");
-        menuItems.put(R.id.menu_3, "https://github.com/settings");
-        
-        // Check if navigation view has any menu items
+        menuItems.put(R.id.menu_1, "text:Test App");
+        menuItems.put(R.id.menu_2, "https://github.com/features");
         if (navigationView.getMenu().size() == 0) {
             // No menu configured, keep it hidden and disable drawer
             navigationView.setVisibility(View.GONE);
