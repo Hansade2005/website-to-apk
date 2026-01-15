@@ -98,6 +98,32 @@ splashImage = splash.png            # Path to your splash screen image (PNG form
 - Use transparent backgrounds for non-rectangular designs
 - Consider your app's theme colors when designing the splash screen
 
+## Bottom Tabs Navigation
+
+Add tabbed navigation at the bottom of your app for quick access to different sections or pages. Perfect for multi-section apps.
+
+```ini
+bottomTabs = Home:https://example.com, Profile:https://example.com/profile, Settings:https://example.com/settings
+```
+
+**Format:** `Label1:URL1, Label2:URL2, Label3:URL3`
+
+**Features:**
+- Up to 5 tabs recommended for optimal mobile UX
+- Tabs are fixed at the bottom of the screen
+- WebView content adjusts to fit above the tab bar
+- Each tab loads a different URL when clicked
+- Simple label:URL format for easy configuration
+
+**Example configurations:**
+```ini
+# Simple two-tab app
+bottomTabs = Home:https://myapp.com, Profile:https://myapp.com/profile
+
+# Multi-section app with three tabs
+bottomTabs = Feed:https://social.app/feed, Messages:https://social.app/messages, Settings:https://social.app/settings
+```
+
 ## Userscripts Support
 
 The app supports userscripts (similar to Tampermonkey/Violentmonkey scripts) through the `scripts` configuration option:

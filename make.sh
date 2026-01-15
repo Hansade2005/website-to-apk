@@ -192,6 +192,9 @@ apply_config() {
             "splashImage")
                 set_splash_image "$value"
                 ;;
+            "bottomTabs")
+                set_bottom_tabs "$value"
+                ;;
             "scripts")
                 set_userscripts $value
                 ;;
@@ -514,6 +517,100 @@ set_splash_image() {
     # Copy splash image
     try "cp \"$splash_path\" \"$dest_file\""
     log "Splash image updated successfully"
+}
+
+
+set_bottom_tabs() {
+    local tabs_config="$@"
+    local menu_file="app/src/main/res/menu/bottom_nav_menu.xml"
+    local java_file="app/src/main/java/com/$appname/webtoapk/MainActivity.java"
+    
+    # If no tabs provided, clear menu and return
+    if [ -z "$tabs_config" ]; then
+        cat > "$menu_file" << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No tabs configured -->
+</menu>
+EOF
+        log "Bottom tabs cleared"
+        return 0
+    fi
+    
+    # Parse tabs format: "Label1:URL1, Label2:URL2, Label3:URL3"
+    # Start building the menu XML
+    cat > "$menu_file" << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+EOF
+    
+    # Parse and add each tab
+    local tab_id=1
+    local tab_map_code=""
+    IFS=',' read -ra TABS <<< "$tabs_config"
+    for tab in "${TABS[@]}"; do
+        # Trim whitespace
+        tab=$(echo "$tab" | xargs)
+        
+        # Split by colon to get label and URL
+        if [[ "$tab" =~ ^([^:]+):(.+)$ ]]; then
+            local label="${BASH_REMATCH[1]}"
+            local url="${BASH_REMATCH[2]}"
+            
+            # Trim whitespace from label and URL
+            label=$(echo "$label" | xargs)
+            url=$(echo "$url" | xargs)
+            
+            # Generate menu item
+            echo "    <item" >> "$menu_file"
+            echo "        android:id=\"@+id/tab_${tab_id}\"" >> "$menu_file"
+            echo "        android:title=\"${label}\" />" >> "$menu_file"
+            
+            # Build Java code for tab URL mapping
+            tab_map_code="${tab_map_code}        tabUrls.put(R.id.tab_${tab_id}, \"${url}\");\n"
+            
+            tab_id=$((tab_id + 1))
+        fi
+    done
+    
+    # Close menu XML
+    echo "</menu>" >> "$menu_file"
+    
+    # Update MainActivity.java to include tab URL mappings
+    # Find the setupBottomNavigation method and inject the mapping code
+    if [ -n "$tab_map_code" ]; then
+        # Insert tab mappings into setupBottomNavigation method
+        local tmp_file=$(mktemp)
+        awk -v mappings="$tab_map_code" '
+        /private void setupBottomNavigation\(\) \{/ {
+            print $0
+            print "        // Auto-generated tab URL mappings"
+            printf "%s", mappings
+            skip_next = 1
+            next
+        }
+        /\/\/ Tab URLs and menu items are populated by make.sh/ && skip_next {
+            skip_next = 0
+            next
+        }
+        /This method sets up the click listener/ && skip_next {
+            skip_next = 0
+            next
+        }
+        !skip_next || !/^[[:space:]]*\/\// {
+            skip_next = 0
+            print $0
+        }
+        ' "$java_file" > "$tmp_file"
+        
+        if ! diff -q "$java_file" "$tmp_file" >/dev/null; then
+            mv "$tmp_file" "$java_file"
+        else
+            rm "$tmp_file"
+        fi
+    fi
+    
+    log "Bottom tabs configured with $((tab_id - 1)) tab(s)"
 }
 
 

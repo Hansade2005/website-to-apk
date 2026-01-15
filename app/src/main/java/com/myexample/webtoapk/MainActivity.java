@@ -107,6 +107,8 @@ public class MainActivity extends AppCompatActivity {
     private BroadcastReceiver mediaActionReceiver;
     private android.widget.ImageView splashImageView;
     private boolean hasSplashImage = false;
+    private com.google.android.material.bottomnavigation.BottomNavigationView bottomNavigation;
+    private java.util.Map<Integer, String> tabUrls;
 
     String mainURL = "https://github.com/Jipok";
     boolean requireDoubleBackToExit = true;
@@ -212,6 +214,11 @@ public class MainActivity extends AppCompatActivity {
         webview.setWebChromeClient(new CustomWebChrome());
         webAppInterface = new WebAppInterface(this);
         webview.addJavascriptInterface(webAppInterface, "WebToApk");
+
+        // Initialize bottom navigation
+        bottomNavigation = findViewById(R.id.bottomNavigation);
+        tabUrls = new java.util.HashMap<>();
+        setupBottomNavigation();
 
         WebSettings webSettings = webview.getSettings();
         webSettings.setJavaScriptEnabled(JSEnabled);
@@ -495,6 +502,33 @@ public class MainActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(this, permissionsArray, LOCATION_PERMISSION_REQUEST_CODE);
             Log.d("WebToApk", "Requesting " + permissionsToRequest.size() + " permissions");
         }
+    }
+
+    private void setupBottomNavigation() {
+        // Auto-generated tab URL mappings
+        tabUrls.put(R.id.tab_1, "https://github.com");
+        tabUrls.put(R.id.tab_2, "https://github.com/explore");
+        tabUrls.put(R.id.tab_3, "https://github.com/settings/profile");
+        // This method sets up the click listener for tab navigation
+        
+        // Check if bottom navigation has any menu items
+        if (bottomNavigation.getMenu().size() == 0) {
+            // No tabs configured, keep it hidden
+            bottomNavigation.setVisibility(View.GONE);
+            return;
+        }
+        
+        // Show bottom navigation if tabs are configured
+        bottomNavigation.setVisibility(View.VISIBLE);
+        
+        bottomNavigation.setOnItemSelectedListener(item -> {
+            String url = tabUrls.get(item.getItemId());
+            if (url != null && !url.isEmpty()) {
+                webview.loadUrl(url);
+                return true;
+            }
+            return false;
+        });
     }
 
     private void executeMediaActionInWebView(String action) {
