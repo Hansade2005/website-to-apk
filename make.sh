@@ -731,7 +731,6 @@ EOF
             # Generate menu item
             echo "    <item" >> "$menu_file"
             echo "        android:id=\"@+id/menu_${item_id}\"" >> "$menu_file"
-            echo "        android:icon=\"@android:drawable/ic_menu_more\"" >> "$menu_file"
             echo "        android:title=\"${label}\" />" >> "$menu_file"
             
             # Build Java code for menu item mapping

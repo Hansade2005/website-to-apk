@@ -112,7 +112,6 @@ public class MainActivity extends AppCompatActivity {
     private androidx.drawerlayout.widget.DrawerLayout drawerLayout;
     private com.google.android.material.navigation.NavigationView navigationView;
     private java.util.Map<Integer, String> menuItems;
-    private android.widget.ImageView drawerIndicator;
 
     String mainURL = "https://github.com/Jipok";
     boolean requireDoubleBackToExit = true;
@@ -208,7 +207,6 @@ public class MainActivity extends AppCompatActivity {
             splashImageView.setImageResource(splashResourceId);
             splashImageView.setVisibility(View.VISIBLE);
             spinner.setVisibility(View.GONE);
-            drawerIndicator.setVisibility(View.GONE); // Hide indicator during splash
         } else {
             // No splash image found, use default spinner
             hasSplashImage = false;
@@ -230,14 +228,6 @@ public class MainActivity extends AppCompatActivity {
         navigationView = findViewById(R.id.navView);
         menuItems = new java.util.HashMap<>();
         setupDrawerNavigation();
-
-        // Initialize drawer indicator
-        drawerIndicator = findViewById(R.id.drawerIndicator);
-        drawerIndicator.setOnClickListener(v -> {
-            if (drawerLayout != null) {
-                drawerLayout.openDrawer(androidx.core.view.GravityCompat.START);
-            }
-        });
 
         WebSettings webSettings = webview.getSettings();
         webSettings.setJavaScriptEnabled(JSEnabled);
@@ -550,25 +540,24 @@ public class MainActivity extends AppCompatActivity {
             // No menu configured, keep it hidden and disable drawer
             navigationView.setVisibility(View.GONE);
             drawerLayout.setDrawerLockMode(androidx.drawerlayout.widget.DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
-            drawerIndicator.setVisibility(View.GONE);
             return;
         }
         
-        // Show navigation view and indicator if menu is configured
+        // Show navigation view if menu is configured
         navigationView.setVisibility(View.VISIBLE);
         drawerLayout.setDrawerLockMode(androidx.drawerlayout.widget.DrawerLayout.LOCK_MODE_UNLOCKED);
-        drawerIndicator.setVisibility(View.VISIBLE);
         
         navigationView.setNavigationItemSelectedListener(item -> {
             String content = menuItems.get(item.getItemId());
             if (content != null && !content.isEmpty()) {
                 if (content.startsWith("text:")) {
-                    // Display text content in a new activity
+                    // Display text content in a dialog
                     String textContent = content.substring(5); // Remove "text:" prefix
-                    Intent intent = new Intent(this, TextDisplayActivity.class);
-                    intent.putExtra("title", item.getTitle());
-                    intent.putExtra("content", textContent);
-                    startActivity(intent);
+                    new AlertDialog.Builder(this)
+                        .setTitle(item.getTitle())
+                        .setMessage(textContent)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show();
                 } else {
                     // Load URL in WebView
                     webview.loadUrl(content);
@@ -1034,10 +1023,6 @@ public class MainActivity extends AppCompatActivity {
                 if (!webview.isShown()) {
                     webview.startAnimation(fadeInAnimation);
                     webview.setVisibility(View.VISIBLE);
-                    // Show drawer indicator if drawer is configured
-                    if (drawerLayout != null && drawerLayout.getDrawerLockMode(androidx.core.view.GravityCompat.START) == androidx.drawerlayout.widget.DrawerLayout.LOCK_MODE_UNLOCKED) {
-                        drawerIndicator.setVisibility(View.VISIBLE);
-                    }
                 }
             }
             super.onPageFinished(webview, url);
