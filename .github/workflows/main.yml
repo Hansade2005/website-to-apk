@@ -30,6 +30,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.17-10/x64
+      JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.17-10/x64
+      ANDROID_HOME: /usr/local/lib/android/sdk
 
     steps:
       - name: Checkout repository
