@@ -234,6 +234,31 @@ apk() {
     fi
 }
 
+aab() {
+    if [ ! -f "app/my-release-key.jks" ]; then
+        error "Keystore file not found. Run './make.sh keygen' first"
+    fi
+
+    rm -f app/build/outputs/bundle/release/app-release.aab
+
+    info "Building AAB..."
+    try "./gradlew bundleRelease --no-daemon --quiet"
+
+    if [ -f "app/build/outputs/bundle/release/app-release.aab" ]; then
+        log "AAB successfully built and signed"
+        try "cp app/build/outputs/bundle/release/app-release.aab '$appname.aab'"
+        echo -e "${BOLD}----------------"
+        echo -e "Final AAB copied to: ${GREEN}$appname.aab${NC}"
+        echo -e "Size: ${BLUE}$(du -h app/build/outputs/bundle/release/app-release.aab | cut -f1)${NC}"
+        echo -e "Package: ${BLUE}com.${appname}.webtoapk${NC}"
+        echo -e "App name: ${BLUE}$(grep -o 'app_name">[^<]*' app/src/main/res/values/strings.xml | cut -d'>' -f2)${NC}"
+        echo -e "URL: ${BLUE}$(grep 'String mainURL' app/src/main/java/com/$appname/webtoapk/*.java | cut -d'"' -f2)${NC}"
+        echo -e "${BOLD}----------------${NC}"
+    else
+        error "Build failed"
+    fi
+}
+
 test() {
     info "Detected app name: $appname"
     try "adb install app/build/outputs/apk/release/app-release.apk"
@@ -1299,6 +1324,7 @@ if [ $# -eq 0 ]; then
     echo -e "  ${BLUE}$0 clean${NC}           - Clean build files, reset settings"
     echo 
     echo -e "  ${BLUE}$0 apk${NC}             - Build APK without apply_config"
+    echo -e "  ${BLUE}$0 aab${NC}             - Build AAB without apply_config"
     echo -e "  ${BLUE}$0 apply_config${NC}    - Apply settings from config file"
 	echo -e "  ${BLUE}$0 get_java${NC}        - Download OpenJDK 17 locally"
     echo -e "  ${BLUE}$0 regradle${NC}        - Reinstall gradle. You don't need it"
