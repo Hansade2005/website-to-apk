@@ -84,6 +84,10 @@ import android.content.IntentFilter;
 public class MainActivity extends AppCompatActivity {
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
     private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 2;
+    private static final int CAMERA_PERMISSION_REQUEST_CODE = 3;
+    private static final int MICROPHONE_PERMISSION_REQUEST_CODE = 4;
+    private static final int CONTACTS_PERMISSION_REQUEST_CODE = 5;
+    private static final int STORAGE_PERMISSION_REQUEST_CODE = 6;
     private static final String NOTIFICATION_CHANNEL_ID = "web_app_notifications";
     private static final String NOTIFICATION_CHANNEL_NAME = "Web App Notifications";
 
@@ -91,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
     private UserScriptManager userScriptManager;
     private ProgressBar spinner;
     private Animation fadeInAnimation;
+    private Animation fadeOutAnimation;
     private View mainLayout;
     private View errorLayout;
     private ViewGroup parentLayout;
@@ -100,6 +105,13 @@ public class MainActivity extends AppCompatActivity {
     private WebAppInterface webAppInterface;
     private BroadcastReceiver unifiedPushEndpointReceiver;
     private BroadcastReceiver mediaActionReceiver;
+    private android.widget.ImageView splashImageView;
+    private boolean hasSplashImage = false;
+    private com.google.android.material.bottomnavigation.BottomNavigationView bottomNavigation;
+    private java.util.Map<Integer, String> tabUrls;
+    private androidx.drawerlayout.widget.DrawerLayout drawerLayout;
+    private com.google.android.material.navigation.NavigationView navigationView;
+    private java.util.Map<Integer, String> menuItems;
 
     String mainURL = "https://github.com/Jipok";
     boolean requireDoubleBackToExit = true;
@@ -131,6 +143,10 @@ public class MainActivity extends AppCompatActivity {
     boolean DebugWebView = false;
 
     boolean geolocationEnabled = false;
+    boolean cameraEnabled = false;
+    boolean microphoneEnabled = false;
+    boolean contactsEnabled = false;
+    boolean storageEnabled = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -178,13 +194,40 @@ public class MainActivity extends AppCompatActivity {
         }
 
         fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in);
+        fadeOutAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_out);
 
         webview = findViewById(R.id.webView);
         spinner = findViewById(R.id.progressBar1);
+        splashImageView = findViewById(R.id.splashImage);
+        
+        // Check if splash image exists and show it
+        int splashResourceId = getResources().getIdentifier("splash", "drawable", getPackageName());
+        if (splashResourceId != 0) {
+            hasSplashImage = true;
+            splashImageView.setImageResource(splashResourceId);
+            splashImageView.setVisibility(View.VISIBLE);
+            spinner.setVisibility(View.GONE);
+        } else {
+            // No splash image found, use default spinner
+            hasSplashImage = false;
+            splashImageView.setVisibility(View.GONE);
+        }
+        
         webview.setWebViewClient(new CustomWebViewClient());
         webview.setWebChromeClient(new CustomWebChrome());
         webAppInterface = new WebAppInterface(this);
         webview.addJavascriptInterface(webAppInterface, "WebToApk");
+
+        // Initialize bottom navigation
+        bottomNavigation = findViewById(R.id.bottomNavigation);
+        tabUrls = new java.util.HashMap<>();
+        setupBottomNavigation();
+
+        // Initialize drawer navigation
+        drawerLayout = findViewById(R.id.drawerLayout);
+        navigationView = findViewById(R.id.navView);
+        menuItems = new java.util.HashMap<>();
+        setupDrawerNavigation();
 
         WebSettings webSettings = webview.getSettings();
         webSettings.setJavaScriptEnabled(JSEnabled);
@@ -210,10 +253,8 @@ public class MainActivity extends AppCompatActivity {
         cookieManager.setCookie(mainURL, cookies);
         cookieManager.flush();
 
-        // Request geo access only if have `android.permission.ACCESS_FINE_LOCATION`
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST_CODE);
-        }
+        // Request permissions based on configuration
+        requestConfiguredPermissions();
 
         // Image upload support
         fileChooserLauncher = registerForActivityResult(
@@ -421,6 +462,114 @@ public class MainActivity extends AppCompatActivity {
                 }
                 return Unit.INSTANCE;
             }
+        });
+    }
+
+    private void requestConfiguredPermissions() {
+        java.util.List<String> permissionsToRequest = new java.util.ArrayList<>();
+        
+        // Check and add each permission if enabled and not granted
+        if (geolocationEnabled && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+        
+        if (cameraEnabled && ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.CAMERA);
+        }
+        
+        if (microphoneEnabled && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO);
+        }
+        
+        if (contactsEnabled && ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.READ_CONTACTS);
+        }
+        
+        if (storageEnabled) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Android 13+ uses granular media permissions
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                    permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES);
+                }
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO) != PackageManager.PERMISSION_GRANTED) {
+                    permissionsToRequest.add(Manifest.permission.READ_MEDIA_VIDEO);
+                }
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                    permissionsToRequest.add(Manifest.permission.READ_MEDIA_AUDIO);
+                }
+            } else {
+                // Older versions use READ_EXTERNAL_STORAGE
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+                }
+            }
+        }
+        
+        // Request all permissions at once if any are needed
+        if (!permissionsToRequest.isEmpty()) {
+            String[] permissionsArray = permissionsToRequest.toArray(new String[0]);
+            ActivityCompat.requestPermissions(this, permissionsArray, LOCATION_PERMISSION_REQUEST_CODE);
+            Log.d("WebToApk", "Requesting " + permissionsToRequest.size() + " permissions");
+        }
+    }
+
+    private void setupBottomNavigation() {
+        // Auto-generated tab URL mappings
+        tabUrls.put(R.id.tab_1, "https://github.com");
+        tabUrls.put(R.id.tab_2, "https://github.com/explore");
+        if (bottomNavigation.getMenu().size() == 0) {
+            // No tabs configured, keep it hidden
+            bottomNavigation.setVisibility(View.GONE);
+            return;
+        }
+        
+        // Show bottom navigation if tabs are configured
+        bottomNavigation.setVisibility(View.VISIBLE);
+        
+        bottomNavigation.setOnItemSelectedListener(item -> {
+            String url = tabUrls.get(item.getItemId());
+            if (url != null && !url.isEmpty()) {
+                webview.loadUrl(url);
+                return true;
+            }
+            return false;
+        });
+    }
+
+    private void setupDrawerNavigation() {
+        // Auto-generated menu item mappings
+        menuItems.put(R.id.menu_1, "text:Test App");
+        menuItems.put(R.id.menu_2, "https://github.com/features");
+        if (navigationView.getMenu().size() == 0) {
+            // No menu configured, keep it hidden and disable drawer
+            navigationView.setVisibility(View.GONE);
+            drawerLayout.setDrawerLockMode(androidx.drawerlayout.widget.DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+            return;
+        }
+        
+        // Show navigation view if menu is configured
+        navigationView.setVisibility(View.VISIBLE);
+        drawerLayout.setDrawerLockMode(androidx.drawerlayout.widget.DrawerLayout.LOCK_MODE_UNLOCKED);
+        
+        navigationView.setNavigationItemSelectedListener(item -> {
+            String content = menuItems.get(item.getItemId());
+            if (content != null && !content.isEmpty()) {
+                if (content.startsWith("text:")) {
+                    // Display text content in a dialog
+                    String textContent = content.substring(5); // Remove "text:" prefix
+                    new AlertDialog.Builder(this)
+                        .setTitle(item.getTitle())
+                        .setMessage(textContent)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show();
+                } else {
+                    // Load URL in WebView
+                    webview.loadUrl(content);
+                }
+                drawerLayout.closeDrawers();
+                return true;
+            }
+            return false;
         });
     }
 
@@ -856,6 +1005,24 @@ public class MainActivity extends AppCompatActivity {
             // Без флага errorOccurred у нас будет видно ошибку webview пока идёт анимация после tryAgain
             if (!errorOccurred) {
                 Log.d("WebToApk","Current page: " + url);
+                
+                // Hide splash screen if it was shown
+                if (hasSplashImage && splashImageView.getVisibility() == View.VISIBLE) {
+                    fadeOutAnimation.setAnimationListener(new Animation.AnimationListener() {
+                        @Override
+                        public void onAnimationStart(Animation animation) {}
+                        
+                        @Override
+                        public void onAnimationEnd(Animation animation) {
+                            splashImageView.setVisibility(View.GONE);
+                        }
+                        
+                        @Override
+                        public void onAnimationRepeat(Animation animation) {}
+                    });
+                    splashImageView.startAnimation(fadeOutAnimation);
+                }
+                
                 spinner.setVisibility(View.GONE);
                 if (!webview.isShown()) {
                     webview.startAnimation(fadeInAnimation);
@@ -914,6 +1081,12 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        // Close drawer if open
+        if (drawerLayout.isDrawerOpen(navigationView)) {
+            drawerLayout.closeDrawer(navigationView);
+            return;
+        }
+        
         if (webview.canGoBack()) {
             webview.goBack();
         } else {

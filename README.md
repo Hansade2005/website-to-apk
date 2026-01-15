@@ -9,6 +9,7 @@ A simple tool to convert any website into an Android APK without requiring Andro
 - Automated Android SDK tools installation
 - APK signing and building process
 - Userscripts support
+- Custom splash screen support for professional branding
 
 ## Quick Start
 
@@ -24,6 +25,7 @@ id = myapp                          # Application ID (will be com.myapp.webtoapk
 name = My App Name                  # Display name of the app
 mainURL = https://example.com       # Target website URL
 icon = example.png                  # Path to your app icon (PNG format)
+splashImage = splash.png            # Optional: Path to splash screen image (PNG format)
 
 allowSubdomains = true              # Allow navigation between example.com and sub.example.com
 requireDoubleBackToExit = true      # Require double back press to exit app
@@ -74,6 +76,89 @@ For example, if your website is `https://example.com`, set:
 ```ini
 deeplink = example.com
 ```
+
+## Splash Screen
+
+Display a custom splash screen image while your app loads for a more professional appearance. The splash screen will automatically fade out once the webpage finishes loading.
+
+To add a splash screen, specify the image path in your configuration file:
+```ini
+splashImage = splash.png            # Path to your splash screen image (PNG format)
+```
+
+**Features:**
+- Supports PNG images of any size (will be centered and scaled to fit)
+- Automatically fades out with a smooth 600ms animation when page loads
+- Falls back to default loading spinner if no splash image is specified
+- Image paths can be relative to the config file location
+
+**Tips for best results:**
+- Use high-resolution images (1080x1920 or higher) for crisp display on all devices
+- Keep file size reasonable (under 500KB) for faster APK builds
+- Use transparent backgrounds for non-rectangular designs
+- Consider your app's theme colors when designing the splash screen
+
+## Bottom Tabs Navigation
+
+Add tabbed navigation at the bottom of your app for quick access to different sections or pages. Perfect for multi-section apps.
+
+```ini
+bottomTabs = Home:https://example.com, Profile:https://example.com/profile, Settings:https://example.com/settings
+```
+
+**Format:** `Label1:URL1, Label2:URL2, Label3:URL3`
+
+**Features:**
+- Up to 5 tabs recommended for optimal mobile UX
+- Tabs are fixed at the bottom of the screen
+- WebView content adjusts to fit above the tab bar
+- Each tab loads a different URL when clicked
+- Simple label:URL format for easy configuration
+
+**Example configurations:**
+```ini
+# Simple two-tab app
+bottomTabs = Home:https://myapp.com, Profile:https://myapp.com/profile
+
+# Multi-section app with three tabs
+bottomTabs = Feed:https://social.app/feed, Messages:https://social.app/messages, Settings:https://social.app/settings
+```
+
+## Slider Menu (Side Drawer)
+
+Add a slide-out navigation drawer accessible from the left edge of the screen. Perfect for additional links and information without cluttering the main interface.
+
+```ini
+sliderMenu = About:text:Welcome to my app!, Help:https://example.com/help, Privacy:https://example.com/privacy
+```
+
+**Format:** `Label1:URL1, Label2:text:Content, Label3:URL3`
+
+**Features:**
+- Swipe from left edge or tap menu button to open
+- Supports both URLs and text content
+- Text content (prefix with `text:`) displays in a dialog
+- URL content loads in the WebView
+- Press back button to close drawer
+- Clean, material design appearance
+
+**Example configurations:**
+```ini
+# Mix of URLs and text
+sliderMenu = About:text:Version 1.0 - Built with love, Support:https://help.example.com, Privacy:https://example.com/privacy
+
+# All URLs for navigation
+sliderMenu = Home:https://app.com, Blog:https://app.com/blog, Contact:https://app.com/contact
+
+# Information-focused menu
+sliderMenu = About:text:This app is awesome!, Terms:text:By using this app you agree..., Version:text:v2.0.1
+```
+
+**Tips:**
+- Use text content for quick info like version numbers or short descriptions
+- Use URLs for actual navigation to web pages
+- Keep labels short (1-2 words) for best mobile UX
+- Combine with bottom tabs for comprehensive navigation
 
 ## Userscripts Support
 
@@ -128,8 +213,27 @@ showDetailsOnErrorScreen = false      # Show connection error details for user
 confirmOpenExternalApp = true         # Show confirmation before opening external app
 blockLocalhostRequests = true         # Block requests to 127.0.0.1
 trustUserCA = false                   # Allow app to trust user-installed SSL certs
-geolocationEnabled     = false        # Block geolocation API
+geolocationEnabled     = false        # Enable geolocation API and request location permission
 ```
+
+## Permission Requests
+
+Control which device permissions your app requests. This enables media-rich features like video calls, file uploads, and contact access.
+
+```ini
+cameraEnabled = false        # Request camera permission for photo/video capture
+microphoneEnabled = false    # Request microphone permission for audio recording
+contactsEnabled = false      # Request permission to read device contacts
+storageEnabled = false       # Request permission to access device storage/media files
+```
+
+**Important Notes:**
+- Permissions are requested at app startup if enabled
+- Users can deny permissions; handle gracefully in your web app
+- Camera and microphone are needed for WebRTC video calls
+- Storage permission is required for file uploads in modern Android versions (Android 13+)
+- All permissions default to `false` for privacy and security
+- Enable only the permissions your app actually needs for Play Store compliance
 
 ## Technical Details
 

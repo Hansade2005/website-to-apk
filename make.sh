@@ -94,10 +94,24 @@ set_var() {
     if ! diff -q "$java_file" "$tmp_file" >/dev/null; then
         mv "$tmp_file" "$java_file"
         log "Updated $var_name to $new_value"
-        # Special handling for geolocationEnabled
-        if [ "$var_name" = "geolocationEnabled" ]; then
-            update_geolocation_permission ${new_value//\"/}
-        fi
+        # Special handling for permissions
+        case "$var_name" in
+            geolocationEnabled)
+                update_geolocation_permission ${new_value//\"/}
+                ;;
+            cameraEnabled)
+                update_camera_permission ${new_value//\"/}
+                ;;
+            microphoneEnabled)
+                update_microphone_permission ${new_value//\"/}
+                ;;
+            contactsEnabled)
+                update_contacts_permission ${new_value//\"/}
+                ;;
+            storageEnabled)
+                update_storage_permission ${new_value//\"/}
+                ;;
+        esac
     else
         rm "$tmp_file"
     fi
@@ -174,6 +188,15 @@ apply_config() {
                 ;;
             "icon")
                 set_icon "$value"
+                ;;
+            "splashImage")
+                set_splash_image "$value"
+                ;;
+            "bottomTabs")
+                set_bottom_tabs "$value"
+                ;;
+            "sliderMenu")
+                set_slider_menu "$value"
                 ;;
             "scripts")
                 set_userscripts $value
@@ -459,6 +482,244 @@ set_icon() {
 }
 
 
+set_splash_image() {
+    local splash_path="$@"
+    local dest_file="app/src/main/res/drawable/splash.png"
+    
+    # If no splash image provided, remove existing one
+    if [ -z "$splash_path" ]; then
+        if [ -f "$dest_file" ]; then
+            rm -f "$dest_file"
+            log "Splash image removed"
+        fi
+        return 0
+    fi
+
+    # If splash_path is not absolute, prepend CONFIG_DIR
+    if [ -n "${CONFIG_DIR:-}" ] && [[ "$splash_path" != /* ]]; then
+        splash_path="$CONFIG_DIR/$splash_path"
+    fi
+
+    # Validate splash image
+    [ ! -f "$splash_path" ] && error "Splash image file not found: $splash_path"
+    
+    # Check if file is PNG
+    file_type=$(file -b --mime-type "$splash_path")
+    if [ "$file_type" != "image/png" ]; then
+        error "Splash image must be in PNG format, got: $file_type"
+    fi
+
+    # Create destination directory if needed
+    mkdir -p "$(dirname "$dest_file")"
+    
+    # Check if splash image needs to be updated
+    if [ -f "$dest_file" ] && cmp -s "$splash_path" "$dest_file"; then
+        return 0
+    fi
+    
+    # Copy splash image
+    try "cp \"$splash_path\" \"$dest_file\""
+    log "Splash image updated successfully"
+}
+
+
+set_bottom_tabs() {
+    local tabs_config="$@"
+    local menu_file="app/src/main/res/menu/bottom_nav_menu.xml"
+    local java_file="app/src/main/java/com/$appname/webtoapk/MainActivity.java"
+    
+    # If no tabs provided, clear menu and return
+    if [ -z "$tabs_config" ]; then
+        cat > "$menu_file" << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No tabs configured -->
+</menu>
+EOF
+        log "Bottom tabs cleared"
+        return 0
+    fi
+    
+    # Parse tabs format: "Label1:URL1, Label2:URL2, Label3:URL3"
+    # Start building the menu XML
+    cat > "$menu_file" << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+EOF
+    
+    # Parse and add each tab
+    local tab_id=1
+    local tab_map_code=""
+    IFS=',' read -ra TABS <<< "$tabs_config"
+    for tab in "${TABS[@]}"; do
+        # Trim whitespace
+        tab=$(echo "$tab" | xargs)
+        
+        # Split by colon to get label and URL
+        if [[ "$tab" =~ ^([^:]+):(.+)$ ]]; then
+            local label="${BASH_REMATCH[1]}"
+            local url="${BASH_REMATCH[2]}"
+            
+            # Trim whitespace from label and URL
+            label=$(echo "$label" | xargs)
+            url=$(echo "$url" | xargs)
+            
+            # Generate menu item
+            echo "    <item" >> "$menu_file"
+            echo "        android:id=\"@+id/tab_${tab_id}\"" >> "$menu_file"
+            echo "        android:title=\"${label}\" />" >> "$menu_file"
+            
+            # Build Java code for tab URL mapping
+            tab_map_code="${tab_map_code}        tabUrls.put(R.id.tab_${tab_id}, \"${url}\");\n"
+            
+            tab_id=$((tab_id + 1))
+        fi
+    done
+    
+    # Close menu XML
+    echo "</menu>" >> "$menu_file"
+    
+    # Update MainActivity.java to include tab URL mappings
+    # Find the setupBottomNavigation method and inject the mapping code
+    if [ -n "$tab_map_code" ]; then
+        # Insert tab mappings into setupBottomNavigation method
+        local tmp_file=$(mktemp)
+        awk -v mappings="$tab_map_code" '
+        /private void setupBottomNavigation\(\) \{/ {
+            print $0
+            print "        // Auto-generated tab URL mappings"
+            printf "%s", mappings
+            in_method = 1
+            skip_mappings = 1
+            next
+        }
+        in_method && skip_mappings && /^[[:space:]]*tabUrls\.put\(/ {
+            next
+        }
+        in_method && skip_mappings && (/^[[:space:]]*\/\/ / || /^[[:space:]]*$/) {
+            next
+        }
+        in_method && skip_mappings {
+            skip_mappings = 0
+        }
+        !skip_mappings {
+            print $0
+        }
+        /private void setupDrawerNavigation/ {
+            in_method = 0
+        }
+        ' "$java_file" > "$tmp_file"
+        
+        if ! diff -q "$java_file" "$tmp_file" >/dev/null; then
+            mv "$tmp_file" "$java_file"
+        else
+            rm "$tmp_file"
+        fi
+    fi
+    
+    log "Bottom tabs configured with $((tab_id - 1)) tab(s)"
+}
+
+
+set_slider_menu() {
+    local menu_config="$@"
+    local menu_file="app/src/main/res/menu/drawer_menu.xml"
+    local java_file="app/src/main/java/com/$appname/webtoapk/MainActivity.java"
+    
+    # If no menu provided, clear menu and return
+    if [ -z "$menu_config" ]; then
+        cat > "$menu_file" << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No menu configured -->
+</menu>
+EOF
+        log "Slider menu cleared"
+        return 0
+    fi
+    
+    # Parse menu format: "Label1:URL1, Label2:text:Content2, Label3:URL3"
+    # Start building the menu XML
+    cat > "$menu_file" << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+EOF
+    
+    # Parse and add each menu item
+    local item_id=1
+    local menu_map_code=""
+    IFS=',' read -ra ITEMS <<< "$menu_config"
+    for item in "${ITEMS[@]}"; do
+        # Trim whitespace
+        item=$(echo "$item" | xargs)
+        
+        # Split by colon to get label and content (URL or text:content)
+        if [[ "$item" =~ ^([^:]+):(.+)$ ]]; then
+            local label="${BASH_REMATCH[1]}"
+            local content="${BASH_REMATCH[2]}"
+            
+            # Trim whitespace from label
+            label=$(echo "$label" | xargs)
+            # Content might be "text:something" or just a URL - keep as is
+            
+            # Generate menu item
+            echo "    <item" >> "$menu_file"
+            echo "        android:id=\"@+id/menu_${item_id}\"" >> "$menu_file"
+            echo "        android:title=\"${label}\" />" >> "$menu_file"
+            
+            # Build Java code for menu item mapping
+            # Escape special characters for Java string
+            content_escaped=$(echo "$content" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
+            menu_map_code="${menu_map_code}        menuItems.put(R.id.menu_${item_id}, \"${content_escaped}\");\n"
+            
+            item_id=$((item_id + 1))
+        fi
+    done
+    
+    # Close menu XML
+    echo "</menu>" >> "$menu_file"
+    
+    # Update MainActivity.java to include menu item mappings
+    if [ -n "$menu_map_code" ]; then
+        # Insert menu mappings into setupDrawerNavigation method
+        local tmp_file=$(mktemp)
+        awk -v mappings="$menu_map_code" '
+        /private void setupDrawerNavigation\(\) \{/ {
+            print $0
+            print "        // Auto-generated menu item mappings"
+            printf "%s", mappings
+            in_method = 1
+            skip_mappings = 1
+            next
+        }
+        in_method && skip_mappings && /^[[:space:]]*menuItems\.put\(/ {
+            next
+        }
+        in_method && skip_mappings && (/^[[:space:]]*\/\/ / || /^[[:space:]]*$/) {
+            next
+        }
+        in_method && skip_mappings {
+            skip_mappings = 0
+        }
+        !skip_mappings {
+            print $0
+        }
+        /private void executeMediaActionInWebView/ {
+            in_method = 0
+        }
+        ' "$java_file" > "$tmp_file"
+        
+        if ! diff -q "$java_file" "$tmp_file" >/dev/null; then
+            mv "$tmp_file" "$java_file"
+        else
+            rm "$tmp_file"
+        fi
+    fi
+    
+    log "Slider menu configured with $((item_id - 1)) item(s)"
+}
+
+
 set_userscripts() {
     local scripts_dir="app/src/main/assets/userscripts"
     
@@ -599,6 +860,165 @@ update_geolocation_permission() {
             rm "$tmp_file"
         fi
     fi
+}
+
+
+update_camera_permission() {
+    local manifest_file="app/src/main/AndroidManifest.xml"
+    local permission='<uses-permission android:name="android.permission.CAMERA" />'
+    local enabled="$1"
+
+    local tmp_file=$(mktemp)
+
+    if [ "$enabled" = "true" ]; then
+        if ! grep -q "android.permission.CAMERA" "$manifest_file"; then
+            awk -v perm="$permission" '
+            {
+                print $0
+                if ($0 ~ /<manifest /) {
+                    print "    " perm
+                }
+            }' "$manifest_file" > "$tmp_file"
+
+            log "Added camera permission to AndroidManifest.xml"
+            try mv "$tmp_file" "$manifest_file"
+        fi
+    else
+        if grep -q "android.permission.CAMERA" "$manifest_file"; then
+            grep -v "android.permission.CAMERA" "$manifest_file" > "$tmp_file"
+            log "Removed camera permission from AndroidManifest.xml"
+            try mv "$tmp_file" "$manifest_file"
+        else
+            rm "$tmp_file"
+        fi
+    fi
+}
+
+
+update_microphone_permission() {
+    local manifest_file="app/src/main/AndroidManifest.xml"
+    local permission='<uses-permission android:name="android.permission.RECORD_AUDIO" />'
+    local enabled="$1"
+
+    local tmp_file=$(mktemp)
+
+    if [ "$enabled" = "true" ]; then
+        if ! grep -q "android.permission.RECORD_AUDIO" "$manifest_file"; then
+            awk -v perm="$permission" '
+            {
+                print $0
+                if ($0 ~ /<manifest /) {
+                    print "    " perm
+                }
+            }' "$manifest_file" > "$tmp_file"
+
+            log "Added microphone permission to AndroidManifest.xml"
+            try mv "$tmp_file" "$manifest_file"
+        fi
+    else
+        if grep -q "android.permission.RECORD_AUDIO" "$manifest_file"; then
+            grep -v "android.permission.RECORD_AUDIO" "$manifest_file" > "$tmp_file"
+            log "Removed microphone permission from AndroidManifest.xml"
+            try mv "$tmp_file" "$manifest_file"
+        else
+            rm "$tmp_file"
+        fi
+    fi
+}
+
+
+update_contacts_permission() {
+    local manifest_file="app/src/main/AndroidManifest.xml"
+    local permission='<uses-permission android:name="android.permission.READ_CONTACTS" />'
+    local enabled="$1"
+
+    local tmp_file=$(mktemp)
+
+    if [ "$enabled" = "true" ]; then
+        if ! grep -q "android.permission.READ_CONTACTS" "$manifest_file"; then
+            awk -v perm="$permission" '
+            {
+                print $0
+                if ($0 ~ /<manifest /) {
+                    print "    " perm
+                }
+            }' "$manifest_file" > "$tmp_file"
+
+            log "Added contacts permission to AndroidManifest.xml"
+            try mv "$tmp_file" "$manifest_file"
+        fi
+    else
+        if grep -q "android.permission.READ_CONTACTS" "$manifest_file"; then
+            grep -v "android.permission.READ_CONTACTS" "$manifest_file" > "$tmp_file"
+            log "Removed contacts permission from AndroidManifest.xml"
+            try mv "$tmp_file" "$manifest_file"
+        else
+            rm "$tmp_file"
+        fi
+    fi
+}
+
+
+update_storage_permission() {
+    local manifest_file="app/src/main/AndroidManifest.xml"
+    local permission_media_images='<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />'
+    local permission_media_video='<uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />'
+    local permission_media_audio='<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />'
+    local enabled="$1"
+
+    local tmp_file=$(mktemp)
+
+    if [ "$enabled" = "true" ]; then
+        # Add Android 13+ media permissions
+        if ! grep -q "android.permission.READ_MEDIA_IMAGES" "$manifest_file"; then
+            awk -v perm="$permission_media_images" '
+            {
+                print $0
+                if ($0 ~ /<manifest /) {
+                    print "    " perm
+                }
+            }' "$manifest_file" > "$tmp_file"
+            mv "$tmp_file" "$manifest_file"
+        fi
+        
+        if ! grep -q "android.permission.READ_MEDIA_VIDEO" "$manifest_file"; then
+            awk -v perm="$permission_media_video" '
+            {
+                print $0
+                if ($0 ~ /<manifest /) {
+                    print "    " perm
+                }
+            }' "$manifest_file" > "$tmp_file"
+            mv "$tmp_file" "$manifest_file"
+        fi
+        
+        if ! grep -q "android.permission.READ_MEDIA_AUDIO" "$manifest_file"; then
+            awk -v perm="$permission_media_audio" '
+            {
+                print $0
+                if ($0 ~ /<manifest /) {
+                    print "    " perm
+                }
+            }' "$manifest_file" > "$tmp_file"
+            mv "$tmp_file" "$manifest_file"
+        fi
+        
+        log "Added storage/media permissions to AndroidManifest.xml"
+    else
+        # Remove media permissions if present
+        local changes_made=false
+        if grep -q "android.permission.READ_MEDIA_IMAGES\|android.permission.READ_MEDIA_VIDEO\|android.permission.READ_MEDIA_AUDIO" "$manifest_file"; then
+            grep -v "android.permission.READ_MEDIA_IMAGES\|android.permission.READ_MEDIA_VIDEO\|android.permission.READ_MEDIA_AUDIO" "$manifest_file" > "$tmp_file"
+            mv "$tmp_file" "$manifest_file"
+            changes_made=true
+        fi
+        
+        if [ "$changes_made" = true ]; then
+            log "Removed storage/media permissions from AndroidManifest.xml"
+        fi
+    fi
+    
+    rm -f "$tmp_file"
 }
 
 
