@@ -13,6 +13,23 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
+        <ImageView
+            android:id="@+id/drawerIndicator"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_margin="16dp"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentStart="true"
+            android:src="@android:drawable/ic_menu_more"
+            android:rotation="180"
+            android:alpha="0.7"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="Open menu"
+            android:visibility="gone"
+        />
+
         <WebView
             android:layout_width="fill_parent"
             android:layout_height="fill_parent"
