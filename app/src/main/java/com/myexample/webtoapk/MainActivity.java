@@ -91,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
     private UserScriptManager userScriptManager;
     private ProgressBar spinner;
     private Animation fadeInAnimation;
+    private Animation fadeOutAnimation;
     private View mainLayout;
     private View errorLayout;
     private ViewGroup parentLayout;
@@ -100,6 +101,8 @@ public class MainActivity extends AppCompatActivity {
     private WebAppInterface webAppInterface;
     private BroadcastReceiver unifiedPushEndpointReceiver;
     private BroadcastReceiver mediaActionReceiver;
+    private android.widget.ImageView splashImageView;
+    private boolean hasSplashImage = false;
 
     String mainURL = "https://github.com/Jipok";
     boolean requireDoubleBackToExit = true;
@@ -178,9 +181,30 @@ public class MainActivity extends AppCompatActivity {
         }
 
         fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in);
+        fadeOutAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_out);
 
         webview = findViewById(R.id.webView);
         spinner = findViewById(R.id.progressBar1);
+        splashImageView = findViewById(R.id.splashImage);
+        
+        // Check if splash image exists and show it
+        try {
+            java.io.InputStream stream = getResources().openRawResource(
+                getResources().getIdentifier("splash", "drawable", getPackageName())
+            );
+            stream.close();
+            hasSplashImage = true;
+            splashImageView.setImageResource(
+                getResources().getIdentifier("splash", "drawable", getPackageName())
+            );
+            splashImageView.setVisibility(View.VISIBLE);
+            spinner.setVisibility(View.GONE);
+        } catch (Exception e) {
+            // No splash image found, use default spinner
+            hasSplashImage = false;
+            splashImageView.setVisibility(View.GONE);
+        }
+        
         webview.setWebViewClient(new CustomWebViewClient());
         webview.setWebChromeClient(new CustomWebChrome());
         webAppInterface = new WebAppInterface(this);
@@ -856,6 +880,24 @@ public class MainActivity extends AppCompatActivity {
             // Без флага errorOccurred у нас будет видно ошибку webview пока идёт анимация после tryAgain
             if (!errorOccurred) {
                 Log.d("WebToApk","Current page: " + url);
+                
+                // Hide splash screen if it was shown
+                if (hasSplashImage && splashImageView.getVisibility() == View.VISIBLE) {
+                    fadeOutAnimation.setAnimationListener(new Animation.AnimationListener() {
+                        @Override
+                        public void onAnimationStart(Animation animation) {}
+                        
+                        @Override
+                        public void onAnimationEnd(Animation animation) {
+                            splashImageView.setVisibility(View.GONE);
+                        }
+                        
+                        @Override
+                        public void onAnimationRepeat(Animation animation) {}
+                    });
+                    splashImageView.startAnimation(fadeOutAnimation);
+                }
+                
                 spinner.setVisibility(View.GONE);
                 if (!webview.isShown()) {
                     webview.startAnimation(fadeInAnimation);

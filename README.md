@@ -9,6 +9,7 @@ A simple tool to convert any website into an Android APK without requiring Andro
 - Automated Android SDK tools installation
 - APK signing and building process
 - Userscripts support
+- Custom splash screen support for professional branding
 
 ## Quick Start
 
@@ -24,6 +25,7 @@ id = myapp                          # Application ID (will be com.myapp.webtoapk
 name = My App Name                  # Display name of the app
 mainURL = https://example.com       # Target website URL
 icon = example.png                  # Path to your app icon (PNG format)
+splashImage = splash.png            # Optional: Path to splash screen image (PNG format)
 
 allowSubdomains = true              # Allow navigation between example.com and sub.example.com
 requireDoubleBackToExit = true      # Require double back press to exit app
@@ -74,6 +76,27 @@ For example, if your website is `https://example.com`, set:
 ```ini
 deeplink = example.com
 ```
+
+## Splash Screen
+
+Display a custom splash screen image while your app loads for a more professional appearance. The splash screen will automatically fade out once the webpage finishes loading.
+
+To add a splash screen, specify the image path in your configuration file:
+```ini
+splashImage = splash.png            # Path to your splash screen image (PNG format)
+```
+
+**Features:**
+- Supports PNG images of any size (will be centered and scaled to fit)
+- Automatically fades out with a smooth 600ms animation when page loads
+- Falls back to default loading spinner if no splash image is specified
+- Image paths can be relative to the config file location
+
+**Tips for best results:**
+- Use high-resolution images (1080x1920 or higher) for crisp display on all devices
+- Keep file size reasonable (under 500KB) for faster APK builds
+- Use transparent backgrounds for non-rectangular designs
+- Consider your app's theme colors when designing the splash screen
 
 ## Userscripts Support
 

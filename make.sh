@@ -175,6 +175,9 @@ apply_config() {
             "icon")
                 set_icon "$value"
                 ;;
+            "splashImage")
+                set_splash_image "$value"
+                ;;
             "scripts")
                 set_userscripts $value
                 ;;
@@ -456,6 +459,47 @@ set_icon() {
     # Copy icon
     try "cp \"$icon_path\" \"$dest_file\""
     log "Icon updated successfully"
+}
+
+
+set_splash_image() {
+    local splash_path="$@"
+    local dest_file="app/src/main/res/drawable/splash.png"
+    
+    # If no splash image provided, remove existing one
+    if [ -z "$splash_path" ]; then
+        if [ -f "$dest_file" ]; then
+            rm -f "$dest_file"
+            log "Splash image removed"
+        fi
+        return 0
+    fi
+
+    # If splash_path is not absolute, prepend CONFIG_DIR
+    if [ -n "${CONFIG_DIR:-}" ] && [[ "$splash_path" != /* ]]; then
+        splash_path="$CONFIG_DIR/$splash_path"
+    fi
+
+    # Validate splash image
+    [ ! -f "$splash_path" ] && error "Splash image file not found: $splash_path"
+    
+    # Check if file is PNG
+    file_type=$(file -b --mime-type "$splash_path")
+    if [ "$file_type" != "image/png" ]; then
+        error "Splash image must be in PNG format, got: $file_type"
+    fi
+
+    # Create destination directory if needed
+    mkdir -p "$(dirname "$dest_file")"
+    
+    # Check if splash image needs to be updated
+    if [ -f "$dest_file" ] && cmp -s "$splash_path" "$dest_file"; then
+        return 0
+    fi
+    
+    # Copy splash image
+    try "cp \"$splash_path\" \"$dest_file\""
+    log "Splash image updated successfully"
 }
 
 

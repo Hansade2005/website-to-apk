@@ -26,6 +26,10 @@ on:
         required: false
         default: true
         type: boolean
+      splash_image_url:
+        description: 'Optional: URL to splash screen image (PNG)'
+        required: false
+        type: string
 
 jobs:
   build:
@@ -97,6 +101,16 @@ jobs:
 
           echo "Final configuration:"
           cat webapk.conf
+
+      - name: Download splash image if provided
+        if: inputs.splash_image_url != ''
+        run: |
+          echo "Downloading splash image from ${{ inputs.splash_image_url }}"
+          wget -O splash.png "${{ inputs.splash_image_url }}" || echo "Failed to download splash image"
+          if [ -f splash.png ]; then
+            sed -i "s|^splashImage = .*|splashImage = splash.png|" webapk.conf
+            echo "Splash image configured"
+          fi
 
       - name: Generate signing keystore (only needed once per runner)
         run: ./make.sh keygen
