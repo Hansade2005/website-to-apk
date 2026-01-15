@@ -157,3 +157,13 @@ jobs:
           name: ${{ inputs.app_name || 'pipilot' }}-apk
           path: ./*.apk
           if-no-files-found: error
+
+      - name: Build the AAB
+        run: ./make.sh aab
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.app_name || 'pipilot' }}-aab
+          path: ./*.aab
+          if-no-files-found: error
