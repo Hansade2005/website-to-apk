@@ -748,7 +748,21 @@ ORIGINAL_PWD="$PWD"
 # Change directory to the directory where make.sh resides (project root)
 try cd "$(dirname "$0")"
 
-export ANDROID_HOME=$PWD/cmdline-tools/
+# Set ANDROID_HOME: use existing if valid, otherwise use local cmdline-tools
+if [ -z "${ANDROID_HOME:-}" ]; then
+    # ANDROID_HOME not set, use local path
+    export ANDROID_HOME=$PWD/cmdline-tools/
+elif [ ! -d "$ANDROID_HOME/build-tools" ] || [ ! -d "$ANDROID_HOME/platforms" ]; then
+    # ANDROID_HOME is set but doesn't have necessary SDK components
+    # This happens when ANDROID_HOME points to a minimal installation
+    # Fall back to local path
+    warn "ANDROID_HOME is set to $ANDROID_HOME but missing SDK components"
+    export ANDROID_HOME=$PWD/cmdline-tools/
+else
+    # ANDROID_HOME is set and appears to have necessary SDK components
+    info "Using existing ANDROID_HOME: $ANDROID_HOME"
+fi
+
 appname=$(grep -Po '(?<=applicationId "com\.)[^.]*' app/build.gradle)
 
 # Set Gradle's cache directory to be local to the project
