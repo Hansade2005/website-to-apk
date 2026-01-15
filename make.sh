@@ -558,7 +558,7 @@ EOF
         !skip_mappings {
             print $0
         }
-        /private void setupDrawerNavigation/ {
+        /private void setupDrawerNavigation\(\)/ {
             in_method = 0
         }
         ' "$java_file" > "$tmp_file"
@@ -638,7 +638,7 @@ EOF
         !skip_mappings {
             print $0
         }
-        /private void setupDrawerNavigation/ {
+        /private void setupDrawerNavigation\(\)/ {
             in_method = 0
         }
         ' "$java_file" > "$tmp_file"

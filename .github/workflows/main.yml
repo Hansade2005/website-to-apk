@@ -93,6 +93,8 @@ jobs:
           enableExternalLinks = true
           openExternalLinksInBrowser = true
           JSEnabled = true
+          bottomTabs = 
+          sliderMenu = 
           EOF
 
       - name: Apply user inputs to webapk.conf
