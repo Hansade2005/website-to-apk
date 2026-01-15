@@ -107,10 +107,12 @@ jobs:
           sed -i "s|^name = .*|name = $APP_NAME|" webapk.conf
           sed -i "s|^id = .*|id = $APP_ID|" webapk.conf
 
-          JS_VALUE=$([[ "${{ inputs.enable_js }}" == "true" ]] && echo "true" || echo "false")
+          ENABLE_JS="${{ inputs.enable_js }}"
+          JS_VALUE=$([[ "$ENABLE_JS" == "true" ]] && echo "true" || echo "false")
           sed -i "s|^JSEnabled = .*|JSEnabled = $JS_VALUE|" webapk.conf
 
-          EXTERNAL_VALUE=$([[ "${{ inputs.allow_external_links }}" == "true" ]] && echo "true" || echo "false")
+          ALLOW_EXTERNAL="${{ inputs.allow_external_links }}"
+          EXTERNAL_VALUE=$([[ "$ALLOW_EXTERNAL" == "true" ]] && echo "true" || echo "false")
           sed -i "s|^openExternalLinksInBrowser = .*|openExternalLinksInBrowser = $EXTERNAL_VALUE|" webapk.conf
 
           echo "Final configuration:"
