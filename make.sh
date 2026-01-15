@@ -94,10 +94,24 @@ set_var() {
     if ! diff -q "$java_file" "$tmp_file" >/dev/null; then
         mv "$tmp_file" "$java_file"
         log "Updated $var_name to $new_value"
-        # Special handling for geolocationEnabled
-        if [ "$var_name" = "geolocationEnabled" ]; then
-            update_geolocation_permission ${new_value//\"/}
-        fi
+        # Special handling for permissions
+        case "$var_name" in
+            geolocationEnabled)
+                update_geolocation_permission ${new_value//\"/}
+                ;;
+            cameraEnabled)
+                update_camera_permission ${new_value//\"/}
+                ;;
+            microphoneEnabled)
+                update_microphone_permission ${new_value//\"/}
+                ;;
+            contactsEnabled)
+                update_contacts_permission ${new_value//\"/}
+                ;;
+            storageEnabled)
+                update_storage_permission ${new_value//\"/}
+                ;;
+        esac
     else
         rm "$tmp_file"
     fi
@@ -643,6 +657,165 @@ update_geolocation_permission() {
             rm "$tmp_file"
         fi
     fi
+}
+
+
+update_camera_permission() {
+    local manifest_file="app/src/main/AndroidManifest.xml"
+    local permission='<uses-permission android:name="android.permission.CAMERA" />'
+    local enabled="$1"
+
+    local tmp_file=$(mktemp)
+
+    if [ "$enabled" = "true" ]; then
+        if ! grep -q "android.permission.CAMERA" "$manifest_file"; then
+            awk -v perm="$permission" '
+            {
+                print $0
+                if ($0 ~ /<manifest /) {
+                    print "    " perm
+                }
+            }' "$manifest_file" > "$tmp_file"
+
+            log "Added camera permission to AndroidManifest.xml"
+            try mv "$tmp_file" "$manifest_file"
+        fi
+    else
+        if grep -q "android.permission.CAMERA" "$manifest_file"; then
+            grep -v "android.permission.CAMERA" "$manifest_file" > "$tmp_file"
+            log "Removed camera permission from AndroidManifest.xml"
+            try mv "$tmp_file" "$manifest_file"
+        else
+            rm "$tmp_file"
+        fi
+    fi
+}
+
+
+update_microphone_permission() {
+    local manifest_file="app/src/main/AndroidManifest.xml"
+    local permission='<uses-permission android:name="android.permission.RECORD_AUDIO" />'
+    local enabled="$1"
+
+    local tmp_file=$(mktemp)
+
+    if [ "$enabled" = "true" ]; then
+        if ! grep -q "android.permission.RECORD_AUDIO" "$manifest_file"; then
+            awk -v perm="$permission" '
+            {
+                print $0
+                if ($0 ~ /<manifest /) {
+                    print "    " perm
+                }
+            }' "$manifest_file" > "$tmp_file"
+
+            log "Added microphone permission to AndroidManifest.xml"
+            try mv "$tmp_file" "$manifest_file"
+        fi
+    else
+        if grep -q "android.permission.RECORD_AUDIO" "$manifest_file"; then
+            grep -v "android.permission.RECORD_AUDIO" "$manifest_file" > "$tmp_file"
+            log "Removed microphone permission from AndroidManifest.xml"
+            try mv "$tmp_file" "$manifest_file"
+        else
+            rm "$tmp_file"
+        fi
+    fi
+}
+
+
+update_contacts_permission() {
+    local manifest_file="app/src/main/AndroidManifest.xml"
+    local permission='<uses-permission android:name="android.permission.READ_CONTACTS" />'
+    local enabled="$1"
+
+    local tmp_file=$(mktemp)
+
+    if [ "$enabled" = "true" ]; then
+        if ! grep -q "android.permission.READ_CONTACTS" "$manifest_file"; then
+            awk -v perm="$permission" '
+            {
+                print $0
+                if ($0 ~ /<manifest /) {
+                    print "    " perm
+                }
+            }' "$manifest_file" > "$tmp_file"
+
+            log "Added contacts permission to AndroidManifest.xml"
+            try mv "$tmp_file" "$manifest_file"
+        fi
+    else
+        if grep -q "android.permission.READ_CONTACTS" "$manifest_file"; then
+            grep -v "android.permission.READ_CONTACTS" "$manifest_file" > "$tmp_file"
+            log "Removed contacts permission from AndroidManifest.xml"
+            try mv "$tmp_file" "$manifest_file"
+        else
+            rm "$tmp_file"
+        fi
+    fi
+}
+
+
+update_storage_permission() {
+    local manifest_file="app/src/main/AndroidManifest.xml"
+    local permission_media_images='<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />'
+    local permission_media_video='<uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />'
+    local permission_media_audio='<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />'
+    local enabled="$1"
+
+    local tmp_file=$(mktemp)
+
+    if [ "$enabled" = "true" ]; then
+        # Add Android 13+ media permissions
+        if ! grep -q "android.permission.READ_MEDIA_IMAGES" "$manifest_file"; then
+            awk -v perm="$permission_media_images" '
+            {
+                print $0
+                if ($0 ~ /<manifest /) {
+                    print "    " perm
+                }
+            }' "$manifest_file" > "$tmp_file"
+            mv "$tmp_file" "$manifest_file"
+        fi
+        
+        if ! grep -q "android.permission.READ_MEDIA_VIDEO" "$manifest_file"; then
+            awk -v perm="$permission_media_video" '
+            {
+                print $0
+                if ($0 ~ /<manifest /) {
+                    print "    " perm
+                }
+            }' "$manifest_file" > "$tmp_file"
+            mv "$tmp_file" "$manifest_file"
+        fi
+        
+        if ! grep -q "android.permission.READ_MEDIA_AUDIO" "$manifest_file"; then
+            awk -v perm="$permission_media_audio" '
+            {
+                print $0
+                if ($0 ~ /<manifest /) {
+                    print "    " perm
+                }
+            }' "$manifest_file" > "$tmp_file"
+            mv "$tmp_file" "$manifest_file"
+        fi
+        
+        log "Added storage/media permissions to AndroidManifest.xml"
+    else
+        # Remove media permissions if present
+        local changes_made=false
+        if grep -q "android.permission.READ_MEDIA_IMAGES\|android.permission.READ_MEDIA_VIDEO\|android.permission.READ_MEDIA_AUDIO" "$manifest_file"; then
+            grep -v "android.permission.READ_MEDIA_IMAGES\|android.permission.READ_MEDIA_VIDEO\|android.permission.READ_MEDIA_AUDIO" "$manifest_file" > "$tmp_file"
+            mv "$tmp_file" "$manifest_file"
+            changes_made=true
+        fi
+        
+        if [ "$changes_made" = true ]; then
+            log "Removed storage/media permissions from AndroidManifest.xml"
+        fi
+    fi
+    
+    rm -f "$tmp_file"
 }
 
 

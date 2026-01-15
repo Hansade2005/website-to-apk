@@ -151,8 +151,27 @@ showDetailsOnErrorScreen = false      # Show connection error details for user
 confirmOpenExternalApp = true         # Show confirmation before opening external app
 blockLocalhostRequests = true         # Block requests to 127.0.0.1
 trustUserCA = false                   # Allow app to trust user-installed SSL certs
-geolocationEnabled     = false        # Block geolocation API
+geolocationEnabled     = false        # Enable geolocation API and request location permission
 ```
+
+## Permission Requests
+
+Control which device permissions your app requests. This enables media-rich features like video calls, file uploads, and contact access.
+
+```ini
+cameraEnabled = false        # Request camera permission for photo/video capture
+microphoneEnabled = false    # Request microphone permission for audio recording
+contactsEnabled = false      # Request permission to read device contacts
+storageEnabled = false       # Request permission to access device storage/media files
+```
+
+**Important Notes:**
+- Permissions are requested at app startup if enabled
+- Users can deny permissions; handle gracefully in your web app
+- Camera and microphone are needed for WebRTC video calls
+- Storage permission is required for file uploads in modern Android versions (Android 13+)
+- All permissions default to `false` for privacy and security
+- Enable only the permissions your app actually needs for Play Store compliance
 
 ## Technical Details
 

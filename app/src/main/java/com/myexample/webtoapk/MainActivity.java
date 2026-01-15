@@ -84,6 +84,10 @@ import android.content.IntentFilter;
 public class MainActivity extends AppCompatActivity {
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
     private static final int NOTIFICATION_PERMISSION_REQUEST_CODE = 2;
+    private static final int CAMERA_PERMISSION_REQUEST_CODE = 3;
+    private static final int MICROPHONE_PERMISSION_REQUEST_CODE = 4;
+    private static final int CONTACTS_PERMISSION_REQUEST_CODE = 5;
+    private static final int STORAGE_PERMISSION_REQUEST_CODE = 6;
     private static final String NOTIFICATION_CHANNEL_ID = "web_app_notifications";
     private static final String NOTIFICATION_CHANNEL_NAME = "Web App Notifications";
 
@@ -134,6 +138,10 @@ public class MainActivity extends AppCompatActivity {
     boolean DebugWebView = false;
 
     boolean geolocationEnabled = false;
+    boolean cameraEnabled = false;
+    boolean microphoneEnabled = false;
+    boolean contactsEnabled = false;
+    boolean storageEnabled = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -229,10 +237,8 @@ public class MainActivity extends AppCompatActivity {
         cookieManager.setCookie(mainURL, cookies);
         cookieManager.flush();
 
-        // Request geo access only if have `android.permission.ACCESS_FINE_LOCATION`
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST_CODE);
-        }
+        // Request permissions based on configuration
+        requestConfiguredPermissions();
 
         // Image upload support
         fileChooserLauncher = registerForActivityResult(
@@ -441,6 +447,54 @@ public class MainActivity extends AppCompatActivity {
                 return Unit.INSTANCE;
             }
         });
+    }
+
+    private void requestConfiguredPermissions() {
+        java.util.List<String> permissionsToRequest = new java.util.ArrayList<>();
+        
+        // Check and add each permission if enabled and not granted
+        if (geolocationEnabled && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+        
+        if (cameraEnabled && ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.CAMERA);
+        }
+        
+        if (microphoneEnabled && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO);
+        }
+        
+        if (contactsEnabled && ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.READ_CONTACTS);
+        }
+        
+        if (storageEnabled) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Android 13+ uses granular media permissions
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                    permissionsToRequest.add(Manifest.permission.READ_MEDIA_IMAGES);
+                }
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO) != PackageManager.PERMISSION_GRANTED) {
+                    permissionsToRequest.add(Manifest.permission.READ_MEDIA_VIDEO);
+                }
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                    permissionsToRequest.add(Manifest.permission.READ_MEDIA_AUDIO);
+                }
+            } else {
+                // Older versions use READ_EXTERNAL_STORAGE
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+                }
+            }
+        }
+        
+        // Request all permissions at once if any are needed
+        if (!permissionsToRequest.isEmpty()) {
+            String[] permissionsArray = permissionsToRequest.toArray(new String[0]);
+            ActivityCompat.requestPermissions(this, permissionsArray, LOCATION_PERMISSION_REQUEST_CODE);
+            Log.d("WebToApk", "Requesting " + permissionsToRequest.size() + " permissions");
+        }
     }
 
     private void executeMediaActionInWebView(String action) {
