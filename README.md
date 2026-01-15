@@ -235,6 +235,52 @@ storageEnabled = false       # Request permission to access device storage/media
 - All permissions default to `false` for privacy and security
 - Enable only the permissions your app actually needs for Play Store compliance
 
+## Using GitHub Actions Workflow
+
+This repository includes a GitHub Actions workflow that allows you to build APKs directly from the GitHub UI without setting up a local development environment.
+
+### How to Use
+
+1. Go to the "Actions" tab in your GitHub repository
+2. Select "Build PiPilot APK" workflow
+3. Click "Run workflow"
+4. Fill in the required inputs:
+   - **Website URL**: The URL of the website you want to wrap (e.g., `https://example.com`)
+   - **App Name**: The name that will appear on the user's phone (e.g., `My App`)
+   - **App ID** (optional): Custom ID suffix (default: `pipilot`, becomes `com.pipilot.webtoapk`)
+   - **Enable JavaScript** (optional): Enable JavaScript in the WebView (default: `true`)
+   - **Open external links in browser** (optional): Open external links in browser (default: `true`)
+   - **Splash Image URL** (optional): URL to a PNG image for the splash screen
+   - **Bottom Tabs** (optional): Bottom navigation tabs configuration (see format below)
+   - **Slider Menu** (optional): Drawer menu configuration (see format below)
+
+### Bottom Tabs Format
+
+Configure bottom navigation tabs using comma-separated `Label:URL` pairs:
+
+```
+Home:https://example.com, Features:https://example.com/features, About:https://example.com/about
+```
+
+### Slider Menu Format
+
+Configure drawer menu items using comma-separated `Label:URL` or `Label:text:Content` pairs:
+
+```
+Help:https://example.com/help, About:text:This is my app version 1.0, Contact:https://example.com/contact
+```
+
+- Use `Label:URL` format for links that open in the WebView
+- Use `Label:text:Content` format for text that displays in a dialog
+
+### Downloading the APK
+
+After the workflow completes successfully:
+1. Go to the workflow run page
+2. Scroll to the "Artifacts" section at the bottom
+3. Download the APK file
+4. Transfer it to your Android device and install
+
 ## Technical Details
 
 - Target Android API: 33 (Android 13)
