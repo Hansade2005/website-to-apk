@@ -124,6 +124,42 @@ bottomTabs = Home:https://myapp.com, Profile:https://myapp.com/profile
 bottomTabs = Feed:https://social.app/feed, Messages:https://social.app/messages, Settings:https://social.app/settings
 ```
 
+## Slider Menu (Side Drawer)
+
+Add a slide-out navigation drawer accessible from the left edge of the screen. Perfect for additional links and information without cluttering the main interface.
+
+```ini
+sliderMenu = About:text:Welcome to my app!, Help:https://example.com/help, Privacy:https://example.com/privacy
+```
+
+**Format:** `Label1:URL1, Label2:text:Content, Label3:URL3`
+
+**Features:**
+- Swipe from left edge or tap menu button to open
+- Supports both URLs and text content
+- Text content (prefix with `text:`) displays in a dialog
+- URL content loads in the WebView
+- Press back button to close drawer
+- Clean, material design appearance
+
+**Example configurations:**
+```ini
+# Mix of URLs and text
+sliderMenu = About:text:Version 1.0 - Built with love, Support:https://help.example.com, Privacy:https://example.com/privacy
+
+# All URLs for navigation
+sliderMenu = Home:https://app.com, Blog:https://app.com/blog, Contact:https://app.com/contact
+
+# Information-focused menu
+sliderMenu = About:text:This app is awesome!, Terms:text:By using this app you agree..., Version:text:v2.0.1
+```
+
+**Tips:**
+- Use text content for quick info like version numbers or short descriptions
+- Use URLs for actual navigation to web pages
+- Keep labels short (1-2 words) for best mobile UX
+- Combine with bottom tabs for comprehensive navigation
+
 ## Userscripts Support
 
 The app supports userscripts (similar to Tampermonkey/Violentmonkey scripts) through the `scripts` configuration option:

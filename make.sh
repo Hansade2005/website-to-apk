@@ -195,6 +195,9 @@ apply_config() {
             "bottomTabs")
                 set_bottom_tabs "$value"
                 ;;
+            "sliderMenu")
+                set_slider_menu "$value"
+                ;;
             "scripts")
                 set_userscripts $value
                 ;;
@@ -611,6 +614,97 @@ EOF
     fi
     
     log "Bottom tabs configured with $((tab_id - 1)) tab(s)"
+}
+
+
+set_slider_menu() {
+    local menu_config="$@"
+    local menu_file="app/src/main/res/menu/drawer_menu.xml"
+    local java_file="app/src/main/java/com/$appname/webtoapk/MainActivity.java"
+    
+    # If no menu provided, clear menu and return
+    if [ -z "$menu_config" ]; then
+        cat > "$menu_file" << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No menu configured -->
+</menu>
+EOF
+        log "Slider menu cleared"
+        return 0
+    fi
+    
+    # Parse menu format: "Label1:URL1, Label2:text:Content2, Label3:URL3"
+    # Start building the menu XML
+    cat > "$menu_file" << 'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+EOF
+    
+    # Parse and add each menu item
+    local item_id=1
+    local menu_map_code=""
+    IFS=',' read -ra ITEMS <<< "$menu_config"
+    for item in "${ITEMS[@]}"; do
+        # Trim whitespace
+        item=$(echo "$item" | xargs)
+        
+        # Split by colon to get label and content (URL or text:content)
+        if [[ "$item" =~ ^([^:]+):(.+)$ ]]; then
+            local label="${BASH_REMATCH[1]}"
+            local content="${BASH_REMATCH[2]}"
+            
+            # Trim whitespace from label
+            label=$(echo "$label" | xargs)
+            # Content might be "text:something" or just a URL - keep as is
+            
+            # Generate menu item
+            echo "    <item" >> "$menu_file"
+            echo "        android:id=\"@+id/menu_${item_id}\"" >> "$menu_file"
+            echo "        android:title=\"${label}\" />" >> "$menu_file"
+            
+            # Build Java code for menu item mapping
+            # Escape special characters for Java string
+            content_escaped=$(echo "$content" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
+            menu_map_code="${menu_map_code}        menuItems.put(R.id.menu_${item_id}, \"${content_escaped}\");\n"
+            
+            item_id=$((item_id + 1))
+        fi
+    done
+    
+    # Close menu XML
+    echo "</menu>" >> "$menu_file"
+    
+    # Update MainActivity.java to include menu item mappings
+    if [ -n "$menu_map_code" ]; then
+        # Insert menu mappings into setupDrawerNavigation method
+        local tmp_file=$(mktemp)
+        awk -v mappings="$menu_map_code" '
+        /private void setupDrawerNavigation\(\) \{/ {
+            print $0
+            print "        // Auto-generated menu item mappings"
+            printf "%s", mappings
+            skip_next = 1
+            next
+        }
+        /\/\/ Menu items and content are populated by make.sh/ && skip_next {
+            skip_next = 0
+            next
+        }
+        !skip_next || !/^[[:space:]]*\/\// {
+            skip_next = 0
+            print $0
+        }
+        ' "$java_file" > "$tmp_file"
+        
+        if ! diff -q "$java_file" "$tmp_file" >/dev/null; then
+            mv "$tmp_file" "$java_file"
+        else
+            rm "$tmp_file"
+        fi
+    fi
+    
+    log "Slider menu configured with $((item_id - 1)) item(s)"
 }
 
 

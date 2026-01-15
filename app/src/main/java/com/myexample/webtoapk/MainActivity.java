@@ -109,6 +109,9 @@ public class MainActivity extends AppCompatActivity {
     private boolean hasSplashImage = false;
     private com.google.android.material.bottomnavigation.BottomNavigationView bottomNavigation;
     private java.util.Map<Integer, String> tabUrls;
+    private androidx.drawerlayout.widget.DrawerLayout drawerLayout;
+    private com.google.android.material.navigation.NavigationView navigationView;
+    private java.util.Map<Integer, String> menuItems;
 
     String mainURL = "https://github.com/Jipok";
     boolean requireDoubleBackToExit = true;
@@ -219,6 +222,12 @@ public class MainActivity extends AppCompatActivity {
         bottomNavigation = findViewById(R.id.bottomNavigation);
         tabUrls = new java.util.HashMap<>();
         setupBottomNavigation();
+
+        // Initialize drawer navigation
+        drawerLayout = findViewById(R.id.drawerLayout);
+        navigationView = findViewById(R.id.navView);
+        menuItems = new java.util.HashMap<>();
+        setupDrawerNavigation();
 
         WebSettings webSettings = webview.getSettings();
         webSettings.setJavaScriptEnabled(JSEnabled);
@@ -525,6 +534,46 @@ public class MainActivity extends AppCompatActivity {
             String url = tabUrls.get(item.getItemId());
             if (url != null && !url.isEmpty()) {
                 webview.loadUrl(url);
+                return true;
+            }
+            return false;
+        });
+    }
+
+    private void setupDrawerNavigation() {
+        // Auto-generated menu item mappings
+        menuItems.put(R.id.menu_1, "https://github.com");
+        menuItems.put(R.id.menu_2, "text:This is my awesome app!");
+        menuItems.put(R.id.menu_3, "https://github.com/settings");
+        
+        // Check if navigation view has any menu items
+        if (navigationView.getMenu().size() == 0) {
+            // No menu configured, keep it hidden and disable drawer
+            navigationView.setVisibility(View.GONE);
+            drawerLayout.setDrawerLockMode(androidx.drawerlayout.widget.DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+            return;
+        }
+        
+        // Show navigation view if menu is configured
+        navigationView.setVisibility(View.VISIBLE);
+        drawerLayout.setDrawerLockMode(androidx.drawerlayout.widget.DrawerLayout.LOCK_MODE_UNLOCKED);
+        
+        navigationView.setNavigationItemSelectedListener(item -> {
+            String content = menuItems.get(item.getItemId());
+            if (content != null && !content.isEmpty()) {
+                if (content.startsWith("text:")) {
+                    // Display text content in a dialog
+                    String textContent = content.substring(5); // Remove "text:" prefix
+                    new AlertDialog.Builder(this)
+                        .setTitle(item.getTitle())
+                        .setMessage(textContent)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show();
+                } else {
+                    // Load URL in WebView
+                    webview.loadUrl(content);
+                }
+                drawerLayout.closeDrawers();
                 return true;
             }
             return false;
@@ -1039,6 +1088,12 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        // Close drawer if open
+        if (drawerLayout.isDrawerOpen(navigationView)) {
+            drawerLayout.closeDrawer(navigationView);
+            return;
+        }
+        
         if (webview.canGoBack()) {
             webview.goBack();
         } else {
