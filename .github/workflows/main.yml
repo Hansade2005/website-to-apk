@@ -99,9 +99,13 @@ jobs:
 
       - name: Apply user inputs to webapk.conf
         run: |
-          sed -i "s|^mainURL = .*|mainURL = ${{ inputs.website_url }}|" webapk.conf
-          sed -i "s|^name = .*|name = ${{ inputs.app_name }}|" webapk.conf
-          sed -i "s|^id = .*|id = ${{ inputs.app_id }}|" webapk.conf
+          WEBSITE_URL="${{ inputs.website_url }}"
+          APP_NAME="${{ inputs.app_name }}"
+          APP_ID="${{ inputs.app_id }}"
+          
+          sed -i "s|^mainURL = .*|mainURL = $WEBSITE_URL|" webapk.conf
+          sed -i "s|^name = .*|name = $APP_NAME|" webapk.conf
+          sed -i "s|^id = .*|id = $APP_ID|" webapk.conf
 
           JS_VALUE=$([[ "${{ inputs.enable_js }}" == "true" ]] && echo "true" || echo "false")
           sed -i "s|^JSEnabled = .*|JSEnabled = $JS_VALUE|" webapk.conf
@@ -115,8 +119,9 @@ jobs:
       - name: Download splash image if provided
         if: inputs.splash_image_url != ''
         run: |
-          echo "Downloading splash image from ${{ inputs.splash_image_url }}"
-          wget -O splash.png "${{ inputs.splash_image_url }}" || echo "Failed to download splash image"
+          SPLASH_URL="${{ inputs.splash_image_url }}"
+          echo "Downloading splash image from $SPLASH_URL"
+          wget -O splash.png "$SPLASH_URL" || echo "Failed to download splash image"
           if [ -f splash.png ]; then
             sed -i "s|^splashImage = .*|splashImage = splash.png|" webapk.conf
             echo "Splash image configured"
@@ -125,15 +130,17 @@ jobs:
       - name: Configure bottom tabs if provided
         if: inputs.bottom_tabs != ''
         run: |
-          echo "Configuring bottom tabs: ${{ inputs.bottom_tabs }}"
-          sed -i "s|^bottomTabs = .*|bottomTabs = ${{ inputs.bottom_tabs }}|" webapk.conf
+          BOTTOM_TABS_VALUE="${{ inputs.bottom_tabs }}"
+          echo "Configuring bottom tabs: $BOTTOM_TABS_VALUE"
+          sed -i "s|^bottomTabs = .*|bottomTabs = $BOTTOM_TABS_VALUE|" webapk.conf
           echo "Bottom tabs configured"
 
       - name: Configure slider menu if provided
         if: inputs.slider_menu != ''
         run: |
-          echo "Configuring slider menu: ${{ inputs.slider_menu }}"
-          sed -i "s|^sliderMenu = .*|sliderMenu = ${{ inputs.slider_menu }}|" webapk.conf
+          SLIDER_MENU_VALUE="${{ inputs.slider_menu }}"
+          echo "Configuring slider menu: $SLIDER_MENU_VALUE"
+          sed -i "s|^sliderMenu = .*|sliderMenu = $SLIDER_MENU_VALUE|" webapk.conf
           echo "Slider menu configured"
 
       - name: Generate signing keystore (only needed once per runner)
