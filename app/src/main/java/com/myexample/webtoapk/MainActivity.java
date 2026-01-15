@@ -188,18 +188,13 @@ public class MainActivity extends AppCompatActivity {
         splashImageView = findViewById(R.id.splashImage);
         
         // Check if splash image exists and show it
-        try {
-            java.io.InputStream stream = getResources().openRawResource(
-                getResources().getIdentifier("splash", "drawable", getPackageName())
-            );
-            stream.close();
+        int splashResourceId = getResources().getIdentifier("splash", "drawable", getPackageName());
+        if (splashResourceId != 0) {
             hasSplashImage = true;
-            splashImageView.setImageResource(
-                getResources().getIdentifier("splash", "drawable", getPackageName())
-            );
+            splashImageView.setImageResource(splashResourceId);
             splashImageView.setVisibility(View.VISIBLE);
             spinner.setVisibility(View.GONE);
-        } catch (Exception e) {
+        } else {
             // No splash image found, use default spinner
             hasSplashImage = false;
             splashImageView.setVisibility(View.GONE);
