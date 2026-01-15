@@ -528,7 +528,7 @@ set_bottom_tabs() {
     local menu_file="app/src/main/res/menu/bottom_nav_menu.xml"
     local java_file="app/src/main/java/com/$appname/webtoapk/MainActivity.java"
     
-    # If no tabs provided, clear menu and return
+    # If no tabs provided, clear menu and Java code, then return
     if [ -z "$tabs_config" ]; then
         cat > "$menu_file" << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
@@ -536,6 +536,39 @@ set_bottom_tabs() {
     <!-- No tabs configured -->
 </menu>
 EOF
+        # Clear Java code references to tabs
+        local tmp_file=$(mktemp)
+        awk '
+        /private void setupBottomNavigation\(\) \{/ {
+            print $0
+            print "        // Auto-generated tab URL mappings"
+            in_method = 1
+            skip_mappings = 1
+            next
+        }
+        in_method && skip_mappings && /^[[:space:]]*tabUrls\.put\(/ {
+            next
+        }
+        in_method && skip_mappings && (/^[[:space:]]*\/\/ / || /^[[:space:]]*$/) {
+            next
+        }
+        in_method && skip_mappings {
+            skip_mappings = 0
+        }
+        !skip_mappings {
+            print $0
+        }
+        /private void setupDrawerNavigation/ {
+            in_method = 0
+        }
+        ' "$java_file" > "$tmp_file"
+        
+        if ! diff -q "$java_file" "$tmp_file" >/dev/null; then
+            mv "$tmp_file" "$java_file"
+        else
+            rm "$tmp_file"
+        fi
+        
         log "Bottom tabs cleared"
         return 0
     fi
@@ -626,7 +659,7 @@ set_slider_menu() {
     local menu_file="app/src/main/res/menu/drawer_menu.xml"
     local java_file="app/src/main/java/com/$appname/webtoapk/MainActivity.java"
     
-    # If no menu provided, clear menu and return
+    # If no menu provided, clear menu and Java code, then return
     if [ -z "$menu_config" ]; then
         cat > "$menu_file" << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
@@ -634,6 +667,39 @@ set_slider_menu() {
     <!-- No menu configured -->
 </menu>
 EOF
+        # Clear Java code references to menu items
+        local tmp_file=$(mktemp)
+        awk '
+        /private void setupDrawerNavigation\(\) \{/ {
+            print $0
+            print "        // Auto-generated menu item mappings"
+            in_method = 1
+            skip_mappings = 1
+            next
+        }
+        in_method && skip_mappings && /^[[:space:]]*menuItems\.put\(/ {
+            next
+        }
+        in_method && skip_mappings && (/^[[:space:]]*\/\/ / || /^[[:space:]]*$/) {
+            next
+        }
+        in_method && skip_mappings {
+            skip_mappings = 0
+        }
+        !skip_mappings {
+            print $0
+        }
+        /private void executeMediaActionInWebView/ {
+            in_method = 0
+        }
+        ' "$java_file" > "$tmp_file"
+        
+        if ! diff -q "$java_file" "$tmp_file" >/dev/null; then
+            mv "$tmp_file" "$java_file"
+        else
+            rm "$tmp_file"
+        fi
+        
         log "Slider menu cleared"
         return 0
     fi

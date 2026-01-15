@@ -30,6 +30,14 @@ on:
         description: 'Optional: URL to splash screen image (PNG)'
         required: false
         type: string
+      bottom_tabs:
+        description: 'Optional: Bottom tabs config (e.g., "Home:https://example.com, About:https://example.com/about")'
+        required: false
+        type: string
+      slider_menu:
+        description: 'Optional: Slider menu config (e.g., "Home:https://example.com, Info:text:App Information")'
+        required: false
+        type: string
 
 jobs:
   build:
@@ -111,6 +119,20 @@ jobs:
             sed -i "s|^splashImage = .*|splashImage = splash.png|" webapk.conf
             echo "Splash image configured"
           fi
+
+      - name: Configure bottom tabs if provided
+        if: inputs.bottom_tabs != ''
+        run: |
+          echo "Configuring bottom tabs: ${{ inputs.bottom_tabs }}"
+          sed -i "s|^bottomTabs = .*|bottomTabs = ${{ inputs.bottom_tabs }}|" webapk.conf
+          echo "Bottom tabs configured"
+
+      - name: Configure slider menu if provided
+        if: inputs.slider_menu != ''
+        run: |
+          echo "Configuring slider menu: ${{ inputs.slider_menu }}"
+          sed -i "s|^sliderMenu = .*|sliderMenu = ${{ inputs.slider_menu }}|" webapk.conf
+          echo "Slider menu configured"
 
       - name: Generate signing keystore (only needed once per runner)
         run: ./make.sh keygen
