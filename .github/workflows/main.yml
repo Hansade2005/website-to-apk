@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       website_url:
-        description: 'Website URL to wrap (e.g. https://pipilot.dev)'
+        description: 'Website URL to wrap[](https://pipilot.dev)'
         required: true
         type: string
       app_name:
@@ -55,13 +55,12 @@ jobs:
             "build-tools;33.0.2" || true
           yes | sdkmanager --licenses
 
-      - name: Patch make.sh to bypass local cmdline-tools check
+      - name: Bypass local cmdline-tools check (symlink trick)
         run: |
-          # Comment out the entire if-check block for missing ./cmdline-tools
-          sed -i '/if\s*\[ ! -d "\.\/cmdline-tools" \]/,/fi/s/^/#/' make.sh
-          # Comment the error echo line too (optional but cleaner logs)
-          sed -i 's/echo\s*\[!\] Android Command Line Tools not found/# &/' make.sh
-          echo "Patched make.sh to skip cmdline-tools existence check"
+          mkdir -p ./cmdline-tools/latest
+          ln -s $ANDROID_HOME/cmdline-tools/latest/bin ./cmdline-tools/latest/bin
+          ln -s $ANDROID_HOME/cmdline-tools/latest/lib ./cmdline-tools/latest/lib
+          echo "Symlinked real SDK tools into ./cmdline-tools/latest"
 
       - name: Make build script executable
         run: chmod +x make.sh
@@ -95,7 +94,7 @@ jobs:
           echo "Final configuration:"
           cat webapk.conf
 
-      - name: Generate signing keystore
+      - name: Generate signing keystore (only needed once per runner)
         run: ./make.sh keygen
 
       - name: Build the APK
